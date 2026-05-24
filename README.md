@@ -1,4 +1,4 @@
-# 🗺 路线啵啵机 · Travel Atlas
+﻿# 🗺 路线改改鸭 · Travel Atlas
 
 > **把抖音视频里的"种草"，自动拼成可视化的旅行地图。**
 > 上传一段抖音/B站旅游视频 → 自动转写 + 关键帧 OCR + LLM 规划 → 输出按天分色路线 + 站点 emoji 标记 + 评分卡 + 必去/避雷清单。
@@ -131,7 +131,7 @@ python server.py
 ## 📁 目录结构
 
 ```
-路线啵啵机-发布版/
+路线改改鸭-发布版/
 ├── server.py             # Flask 后端入口
 ├── pipeline.py           # 视频→攻略 流水线（ffmpeg/yt-dlp/whisper/LLM）
 ├── visualize.py          # Folium + OSM 地图渲染
@@ -200,3 +200,4 @@ A：注册高德 Web Key 设置 `AMAP_KEY` 环境变量；或直接编辑 `outpu
 ## 📜 License
 
 仅供个人学习 / 评审 / Demo 演示使用。所引用模型、地图、视频版权归原作者所有。
+
