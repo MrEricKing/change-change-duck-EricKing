@@ -1,0 +1,597 @@
+{
+  "title": "长三角 5 日深度游",
+  "city": "长三角",
+  "days": 5,
+  "people": 2,
+  "budget_per_day": 600,
+  "budget_total": 3000,
+  "travel_style": "标准型",
+  "target_group": "大人",
+  "themes": [
+    "人文古迹",
+    "自然风光",
+    "美食巡游"
+  ],
+  "itinerary": [
+    {
+      "day": 1,
+      "theme": "上海 · 浦西经典 + 浦江夜景",
+      "stops": [
+        {
+          "place": "外滩",
+          "lat": 31.2403,
+          "lng": 121.4913,
+          "emoji": "🌃",
+          "type": "景点",
+          "activities": [
+            "看万国建筑群",
+            "拍陆家嘴天际线",
+            "沿江散步"
+          ],
+          "time_hours": 2,
+          "cost": 0,
+          "transport": "地铁 2 / 10 号线 南京东路站 + 步行 5 分钟",
+          "polarity": "must_go",
+          "avoid": false,
+          "scores": {
+            "value": 9,
+            "photo": 10,
+            "crowded": 4,
+            "accessibility": 10
+          },
+          "pros": [
+            "免费",
+            "随手出片"
+          ],
+          "cons": [
+            "人多"
+          ],
+          "recommended_foods": [],
+          "reason": "上海最经典的城市天际线，下午到傍晚光线最佳",
+          "tip": "傍晚日落前 30 分钟到达，可以同时拍到白天和夜景"
+        },
+        {
+          "place": "南京路步行街",
+          "lat": 31.2363,
+          "lng": 121.4779,
+          "emoji": "🛍",
+          "type": "购物",
+          "activities": [
+            "逛老字号商场",
+            "尝生煎和小笼",
+            "看霓虹招牌"
+          ],
+          "time_hours": 1.5,
+          "cost": 150,
+          "transport": "步行 8 分钟（外滩西侧）",
+          "polarity": "normal",
+          "avoid": false,
+          "scores": {
+            "value": 7,
+            "photo": 8,
+            "crowded": 3,
+            "accessibility": 10
+          },
+          "recommended_foods": [
+            "沈大成",
+            "王家沙",
+            "新雅粤菜"
+          ],
+          "tip": "老字号排队较久，错峰最舒服"
+        },
+        {
+          "place": "豫园 & 城隍庙",
+          "lat": 31.2274,
+          "lng": 121.4923,
+          "emoji": "🏯",
+          "type": "景点",
+          "activities": [
+            "游古典园林",
+            "看九曲桥湖心亭",
+            "尝南翔小笼"
+          ],
+          "time_hours": 2,
+          "cost": 40,
+          "transport": "地铁 10 号线 豫园站",
+          "polarity": "must_go",
+          "avoid": false,
+          "scores": {
+            "value": 8,
+            "photo": 9,
+            "crowded": 4,
+            "accessibility": 9
+          },
+          "recommended_foods": [
+            "南翔馒头店",
+            "宁波汤团"
+          ],
+          "tip": "南翔馒头店排队 1 小时，可绕到二楼堂食区"
+        },
+        {
+          "place": "陆家嘴 · 东方明珠",
+          "lat": 31.2425,
+          "lng": 121.5067,
+          "emoji": "🌆",
+          "type": "夜景",
+          "activities": [
+            "登东方明珠观光",
+            "环球金融中心 100 层",
+            "拍夜景"
+          ],
+          "time_hours": 1.5,
+          "cost": 220,
+          "transport": "地铁 2 号线 陆家嘴站",
+          "polarity": "normal",
+          "avoid": false,
+          "scores": {
+            "value": 8,
+            "photo": 10,
+            "crowded": 5,
+            "accessibility": 10
+          },
+          "tip": "上海中心 118 层观光厅最高最贵，环球 100 层性价比更好"
+        },
+        {
+          "place": "黄浦江夜游船",
+          "lat": 31.2241,
+          "lng": 121.4906,
+          "emoji": "🚢",
+          "type": "体验",
+          "activities": [
+            "乘船看两岸灯光",
+            "拍江上夜景"
+          ],
+          "time_hours": 1,
+          "cost": 120,
+          "transport": "步行至十六铺码头",
+          "polarity": "normal",
+          "avoid": false,
+          "scores": {
+            "value": 7,
+            "photo": 9,
+            "crowded": 6,
+            "accessibility": 9
+          },
+          "tip": "提前大众点评团购便宜 30%"
+        }
+      ]
+    },
+    {
+      "day": 2,
+      "theme": "苏州 · 园林古城",
+      "stops": [
+        {
+          "place": "拙政园",
+          "lat": 31.3258,
+          "lng": 120.6313,
+          "emoji": "🏯",
+          "type": "景点",
+          "activities": [
+            "游中国四大名园",
+            "拍江南园林"
+          ],
+          "time_hours": 2.5,
+          "cost": 70,
+          "transport": "上海高铁至苏州 30 分钟 + 地铁 4 号线 北寺塔站",
+          "polarity": "must_go",
+          "avoid": false,
+          "scores": {
+            "value": 10,
+            "photo": 10,
+            "crowded": 4,
+            "accessibility": 8
+          },
+          "pros": [
+            "园林教科书级别"
+          ],
+          "reason": "苏州必去 NO.1，江南园林代表作",
+          "tip": "上午 8 点开门就到，避开旅行团"
+        },
+        {
+          "place": "苏州博物馆",
+          "lat": 31.3262,
+          "lng": 120.6304,
+          "emoji": "🏛",
+          "type": "博物馆",
+          "activities": [
+            "看贝聿铭建筑",
+            "看明清书画文物"
+          ],
+          "time_hours": 1.5,
+          "cost": 0,
+          "transport": "步行 3 分钟（紧邻拙政园）",
+          "polarity": "normal",
+          "avoid": false,
+          "scores": {
+            "value": 9,
+            "photo": 9,
+            "crowded": 5,
+            "accessibility": 10
+          },
+          "tip": "免费但需提前 1 天预约"
+        },
+        {
+          "place": "平江路历史街区",
+          "lat": 31.3206,
+          "lng": 120.6334,
+          "emoji": "🍜",
+          "type": "景点",
+          "activities": [
+            "走老街巷",
+            "吃苏式小吃",
+            "尝鸡头米"
+          ],
+          "time_hours": 2,
+          "cost": 100,
+          "transport": "步行 15 分钟（拙政园南面）",
+          "polarity": "normal",
+          "avoid": false,
+          "scores": {
+            "value": 8,
+            "photo": 9,
+            "crowded": 4,
+            "accessibility": 9
+          },
+          "recommended_foods": [
+            "哑巴生煎",
+            "鸡头米",
+            "苏式糕点",
+            "桂花糖芋苗"
+          ]
+        },
+        {
+          "place": "山塘街",
+          "lat": 31.3294,
+          "lng": 120.6024,
+          "emoji": "🏮",
+          "type": "景点",
+          "activities": [
+            "夜游运河水巷",
+            "看红灯笼",
+            "听评弹"
+          ],
+          "time_hours": 1.5,
+          "cost": 0,
+          "transport": "地铁 2 号线 山塘街站",
+          "polarity": "normal",
+          "avoid": false,
+          "scores": {
+            "value": 8,
+            "photo": 10,
+            "crowded": 5,
+            "accessibility": 9
+          },
+          "tip": "晚上 7-9 点最美，可乘船游运河"
+        }
+      ]
+    },
+    {
+      "day": 3,
+      "theme": "杭州 · 西湖与江南文化",
+      "stops": [
+        {
+          "place": "西湖（断桥 - 苏堤）",
+          "lat": 30.258,
+          "lng": 120.1502,
+          "emoji": "🌊",
+          "type": "自然",
+          "activities": [
+            "环湖骑行",
+            "走断桥白堤",
+            "拍三潭印月"
+          ],
+          "time_hours": 3,
+          "cost": 0,
+          "transport": "苏州高铁至杭州东 1.5h + 地铁 4 号线 龙翔桥站",
+          "polarity": "must_go",
+          "avoid": false,
+          "scores": {
+            "value": 10,
+            "photo": 10,
+            "crowded": 4,
+            "accessibility": 10
+          },
+          "reason": "杭州灵魂所在，雨后烟雨蒙蒙最美",
+          "tip": "租公共自行车环湖 2 小时最舒服"
+        },
+        {
+          "place": "灵隐寺",
+          "lat": 30.241,
+          "lng": 120.0998,
+          "emoji": "⛩",
+          "type": "寺庙",
+          "activities": [
+            "参拜千年古刹",
+            "看飞来峰石刻"
+          ],
+          "time_hours": 2,
+          "cost": 75,
+          "transport": "公交 K7 / Y2 到灵隐",
+          "polarity": "normal",
+          "avoid": false,
+          "scores": {
+            "value": 8,
+            "photo": 8,
+            "crowded": 5,
+            "accessibility": 8
+          },
+          "tip": "需先买飞来峰票 45 元 + 灵隐寺香花券 30 元"
+        },
+        {
+          "place": "河坊街",
+          "lat": 30.2415,
+          "lng": 120.1689,
+          "emoji": "🍡",
+          "type": "购物",
+          "activities": [
+            "逛仿古街",
+            "尝杭州小吃",
+            "看叫卖表演"
+          ],
+          "time_hours": 1.5,
+          "cost": 80,
+          "transport": "地铁 7 号线 吴山广场站",
+          "polarity": "normal",
+          "avoid": false,
+          "scores": {
+            "value": 7,
+            "photo": 8,
+            "crowded": 4,
+            "accessibility": 10
+          },
+          "recommended_foods": [
+            "定胜糕",
+            "葱包桧",
+            "片儿川",
+            "桂花糖"
+          ]
+        },
+        {
+          "place": "西溪湿地",
+          "lat": 30.271,
+          "lng": 120.071,
+          "emoji": "🌿",
+          "type": "自然",
+          "activities": [
+            "乘电瓶船游湿地",
+            "看芦苇花海"
+          ],
+          "time_hours": 2,
+          "cost": 80,
+          "transport": "地铁 5 号线 蒋村站",
+          "polarity": "normal",
+          "avoid": false,
+          "scores": {
+            "value": 7,
+            "photo": 8,
+            "crowded": 7,
+            "accessibility": 7
+          },
+          "tip": "10-11 月芦苇最美；不收费的外围体验差"
+        }
+      ]
+    },
+    {
+      "day": 4,
+      "theme": "南京 · 民国风与古都",
+      "stops": [
+        {
+          "place": "中山陵",
+          "lat": 32.0648,
+          "lng": 118.8515,
+          "emoji": "🏛",
+          "type": "景点",
+          "activities": [
+            "登 392 级台阶",
+            "看陵墓建筑群"
+          ],
+          "time_hours": 2,
+          "cost": 0,
+          "transport": "杭州高铁至南京南 1.5h + 地铁 2 号线 下马坊站",
+          "polarity": "must_go",
+          "avoid": false,
+          "scores": {
+            "value": 9,
+            "photo": 9,
+            "crowded": 5,
+            "accessibility": 8
+          },
+          "tip": "免费但要预约，最好早上去人少"
+        },
+        {
+          "place": "南京总统府",
+          "lat": 32.0467,
+          "lng": 118.7918,
+          "emoji": "🏛",
+          "type": "博物馆",
+          "activities": [
+            "看民国办公旧址",
+            "拍煦园"
+          ],
+          "time_hours": 1.5,
+          "cost": 35,
+          "transport": "地铁 2/3 号线 大行宫站",
+          "polarity": "normal",
+          "avoid": false,
+          "scores": {
+            "value": 8,
+            "photo": 8,
+            "crowded": 5,
+            "accessibility": 10
+          },
+          "tip": "推荐请讲解员，民国历史更生动"
+        },
+        {
+          "place": "夫子庙 · 秦淮河",
+          "lat": 32.025,
+          "lng": 118.7886,
+          "emoji": "🏮",
+          "type": "景点",
+          "activities": [
+            "夜游秦淮河",
+            "尝南京小吃",
+            "看夫子庙"
+          ],
+          "time_hours": 2,
+          "cost": 0,
+          "transport": "地铁 3 号线 夫子庙站",
+          "polarity": "normal",
+          "avoid": true,
+          "scores": {
+            "value": 6,
+            "photo": 9,
+            "crowded": 2,
+            "accessibility": 10
+          },
+          "cons": [
+            "商业化重",
+            "人挤人"
+          ],
+          "recommended_foods": [
+            "鸭血粉丝汤",
+            "盐水鸭",
+            "桂花糖芋苗"
+          ],
+          "tip": "白天来更好，夜晚太挤"
+        },
+        {
+          "place": "1912 街区",
+          "lat": 32.0485,
+          "lng": 118.7968,
+          "emoji": "🍷",
+          "type": "休闲",
+          "activities": [
+            "民国风酒吧",
+            "夜宵"
+          ],
+          "time_hours": 1.5,
+          "cost": 120,
+          "transport": "步行 3 分钟（总统府旁边）",
+          "polarity": "normal",
+          "avoid": false,
+          "scores": {
+            "value": 6,
+            "photo": 7,
+            "crowded": 7,
+            "accessibility": 10
+          },
+          "tip": "走廊和庭院氛围最好"
+        }
+      ]
+    },
+    {
+      "day": 5,
+      "theme": "无锡 · 山水返程",
+      "stops": [
+        {
+          "place": "鼋头渚",
+          "lat": 31.5065,
+          "lng": 120.2225,
+          "emoji": "🌸",
+          "type": "景点",
+          "activities": [
+            "太湖第一胜境",
+            "3 - 4 月赏樱花"
+          ],
+          "time_hours": 3,
+          "cost": 90,
+          "transport": "南京高铁至无锡 1h + 公交 K1 路 到鼋头渚",
+          "polarity": "must_go",
+          "avoid": false,
+          "scores": {
+            "value": 9,
+            "photo": 10,
+            "crowded": 6,
+            "accessibility": 8
+          },
+          "reason": "中国赏樱花最美的地方之一",
+          "tip": "3 月底 4 月初樱花季最值；可乘船到太湖仙岛"
+        },
+        {
+          "place": "惠山古镇",
+          "lat": 31.6188,
+          "lng": 120.2748,
+          "emoji": "🏘",
+          "type": "景点",
+          "activities": [
+            "逛慢生活古镇",
+            "看惠山泥人"
+          ],
+          "time_hours": 2,
+          "cost": 0,
+          "transport": "公交 16 路 / 87 路",
+          "polarity": "normal",
+          "avoid": false,
+          "scores": {
+            "value": 7,
+            "photo": 8,
+            "crowded": 8,
+            "accessibility": 9
+          },
+          "tip": "免费且人不多，适合下午慢游"
+        },
+        {
+          "place": "三凤桥（无锡特色晚餐）",
+          "lat": 31.5757,
+          "lng": 120.302,
+          "emoji": "🍖",
+          "type": "美食",
+          "activities": [
+            "尝无锡酱排骨",
+            "尝无锡小笼"
+          ],
+          "time_hours": 1,
+          "cost": 80,
+          "transport": "地铁 1 号线 三阳广场站",
+          "polarity": "normal",
+          "avoid": false,
+          "scores": {
+            "value": 8,
+            "photo": 7,
+            "crowded": 5,
+            "accessibility": 10
+          },
+          "recommended_foods": [
+            "酱排骨",
+            "小笼包",
+            "馄饨",
+            "玉兰饼"
+          ]
+        }
+      ]
+    }
+  ],
+  "must_go": [
+    "外滩日落 + 陆家嘴夜景",
+    "苏州拙政园（早上 8 点）",
+    "杭州西湖环湖骑行",
+    "南京中山陵",
+    "无锡鼋头渚（樱花季更美）"
+  ],
+  "avoid": [
+    "节假日豫园（人爆挤）",
+    "夫子庙商业化夜市",
+    "西溪湿地不收费的外围（体验差）",
+    "周末早高峰高铁"
+  ],
+  "backup_list": [
+    {
+      "place": "周庄古镇",
+      "reason": "时间紧张可放弃，与平江路体验相似"
+    },
+    {
+      "place": "宋城千古情",
+      "reason": "若不想看演出可省略"
+    },
+    {
+      "place": "玄武湖",
+      "reason": "时间紧时可放弃"
+    }
+  ],
+  "summary": {
+    "total_cost": 3000,
+    "route_logic": "沪 → 苏 → 杭 → 宁 → 锡，高铁串联，每天 4 个景点为主，强度适中。每晚选择城市中心酒店，第二天早起赶高铁。",
+    "notes": "全程高铁 + 地铁；尽量错开节假日；夏天注意防暑，春秋季最佳。建议提前 1 周预约博物馆和拙政园。带舒适步行鞋 + 充电宝 + 雨伞。",
+    "travel_style": "标准型 · 城市探索 + 历史人文"
+  }
+}

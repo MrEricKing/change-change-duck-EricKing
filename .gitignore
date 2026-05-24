@@ -1,0 +1,26 @@
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# Python 字节码
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 上传 / 临时文件
+output/uploads/*
+output/frames/*
+output/video_cache/
+output/_*
+output/map.html
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# 日志
+*.log
