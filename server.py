@@ -45,6 +45,7 @@ _ensure_ffmpeg_on_path()
 from flask import Flask, jsonify, render_template, request, send_from_directory
 
 import geocode
+import post_trip
 import travel_memory
 from visualize import render_map
 
@@ -438,6 +439,73 @@ def api_memory_retrieve():
     except Exception as e:
         logger.exception("memory retrieve failed")
         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/post-trip/records", methods=["GET"])
+def api_post_trip_records():
+    """返回旅行后记录。真实记录和派生偏好分开保存。"""
+    records = post_trip.list_records()
+    return jsonify({
+        "ok": True,
+        "records": records,
+        "compact": post_trip.compact_records(records),
+        "count": len(records),
+    })
+
+
+@app.route("/api/post-trip/records", methods=["POST"])
+def api_post_trip_record_save():
+    """保存一次真实旅行后记录，作为后续偏好提炼和攻略生成的事实源。"""
+    body = request.get_json(silent=True) or {}
+    plan = STATE["plan"] or _load_existing_plan()
+    try:
+        saved = post_trip.add_record(body, plan=plan)
+        records = post_trip.list_records()
+        return jsonify({
+            "ok": True,
+            "record": saved,
+            "records": records,
+            "compact": post_trip.compact_records(records),
+        })
+    except Exception as e:
+        logger.exception("post-trip record save failed")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/post-trip/photos", methods=["POST"])
+def api_post_trip_photos():
+    """接收旅行后照片，保存到本地 output/post_trip_photos/。"""
+    files = request.files.getlist("photos")
+    if not files:
+        single = request.files.get("photo")
+        files = [single] if single else []
+    files = [f for f in files if f and f.filename]
+    if not files:
+        return jsonify({"ok": False, "error": "未收到照片"}), 400
+
+    import time
+    import re as _re
+    photo_dir = OUT_DIR / "post_trip_photos"
+    photo_dir.mkdir(exist_ok=True)
+    photos = []
+    for idx, f in enumerate(files[:12], start=1):
+        if f.mimetype and not f.mimetype.startswith("image/"):
+            return jsonify({"ok": False, "error": f"不是图片文件：{f.filename}"}), 400
+        suffix = Path(f.filename).suffix.lower() or ".jpg"
+        if suffix not in {".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic"}:
+            suffix = ".jpg"
+        stem = Path(f.filename).stem or "photo"
+        stem = _re.sub(r"[^A-Za-z0-9_\-\u4e00-\u9fff]+", "_", stem).strip("_")[:24] or "photo"
+        safe_name = f"post_{int(time.time())}_{idx}_{stem}{suffix}"
+        dst = photo_dir / safe_name
+        f.save(str(dst))
+        photos.append({
+            "name": safe_name,
+            "url": f"/output/post_trip_photos/{safe_name}",
+            "size": dst.stat().st_size,
+            "caption": "",
+        })
+    return jsonify({"ok": True, "photos": photos})
 
 
 @app.route("/api/revise", methods=["POST"])

@@ -38,7 +38,9 @@ function emojiFor(stop){
 const MAX_FILES = 5;
 let pickedFiles = [];  // [{file: File, path: ""}]
 let fileInput, fileEmpty, filePicked;
+let currentPlan = null;
 const memoryState = { memories: [], lastContext: '', lastMatches: [] };
+const postTripState = { records: [], photos: [], activeRecord: null };
 
 function bindFile(){
   fileInput = $('#video');
@@ -436,6 +438,148 @@ async function saveMemoryReflection(){
   }
 }
 
+/* ---------- 旅行后记录 ---------- */
+function splitPostTripList(text){
+  return String(text || '')
+    .split(/[\n,，、;；]+/)
+    .map(x => x.trim())
+    .filter(Boolean);
+}
+
+function renderPostTripPhotos(){
+  const box = $('#postPhotoList');
+  if(!box) return;
+  const photos = postTripState.photos || [];
+  if(!photos.length){
+    box.innerHTML = '<span class="file-sub">尚未上传照片</span>';
+    return;
+  }
+  box.innerHTML = photos.map(p =>
+    `<span class="post-photo-chip" title="${esc(p.name || '')}">${esc(p.name || '照片')}</span>`
+  ).join('');
+}
+
+function collectPostTripRecord(){
+  return {
+    title: ($('#postTripTitle')?.value || '').trim(),
+    actual_cost: ($('#postActualCost')?.value || '').trim(),
+    actual_pace: ($('#postActualPace')?.value || '').trim(),
+    actual_places: splitPostTripList($('#postActualPlaces')?.value),
+    skipped_places: splitPostTripList($('#postSkippedPlaces')?.value),
+    added_places: splitPostTripList($('#postAddedPlaces')?.value),
+    review_text: ($('#postReviewText')?.value || '').trim(),
+    photos: postTripState.photos || [],
+  };
+}
+
+function renderPostTripRecords(records){
+  const box = $('#postRecordList');
+  if(!box) return;
+  const items = records || postTripState.records || [];
+  if(!items.length){
+    box.innerHTML = '<div class="memory-empty">还没有旅行后记录</div>';
+    return;
+  }
+  box.innerHTML = items.slice(0, 8).map(r => {
+    const date = (r.created_at || '').slice(0, 10);
+    const places = (r.actual_places || []).slice(0, 3).join('、') || '未记录地点';
+    const photo = Number(r.photo_count || (r.photos || []).length || 0);
+    return `<div class="post-record-item" data-record-id="${esc(r.id || '')}">
+      <div class="post-record-title">
+        <span>${esc(r.title || '旅行后记录')}</span>
+        <span>${esc(date)}</span>
+      </div>
+      <div class="file-sub">${esc(places)}${photo ? ` · ${photo} 张照片` : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+async function loadPostTripRecords(){
+  try{
+    const r = await fetch('/api/post-trip/records');
+    const d = await r.json();
+    if(!d.ok) throw new Error(d.error || '加载失败');
+    postTripState.records = d.compact || d.records || [];
+    renderPostTripRecords(postTripState.records);
+  }catch(err){
+    const box = $('#postRecordList');
+    if(box) box.innerHTML = `<div class="memory-empty">旅行记录加载失败：${esc(err.message)}</div>`;
+  }
+}
+
+function fillActualFromPlan(){
+  const plan = currentPlan || {};
+  const places = [];
+  (plan.itinerary || []).forEach(day => {
+    (day.stops || []).forEach(stop => {
+      const name = (stop.place || '').trim();
+      if(name && !places.includes(name)) places.push(name);
+    });
+  });
+  if(!places.length){
+    toast('当前还没有可填入的计划地点', 'err');
+    return;
+  }
+  $('#postActualPlaces').value = places.join('\n');
+  if(!($('#postTripTitle')?.value || '').trim()){
+    $('#postTripTitle').value = `${plan.title || plan.city || '旅行'}真实复盘`;
+  }
+  toast('已填入当前计划地点', 'ok');
+}
+
+async function uploadPostTripPhotos(files){
+  const selected = [...(files || [])].filter(f => f.type?.startsWith('image/')).slice(0, 12);
+  if(!selected.length) return;
+  const fd = new FormData();
+  selected.forEach(f => fd.append('photos', f, f.name));
+  const r = await fetch('/api/post-trip/photos', { method:'POST', body: fd });
+  const d = await r.json();
+  if(!d.ok) throw new Error(d.error || '照片上传失败');
+  postTripState.photos = [...(postTripState.photos || []), ...(d.photos || [])];
+  renderPostTripPhotos();
+  toast(`已上传 ${d.photos?.length || 0} 张旅行照片`, 'ok');
+}
+
+async function savePostTripRecord(){
+  const record = collectPostTripRecord();
+  if(!record.review_text && !record.actual_places.length && !record.photos.length){
+    toast('请先记录实际行程、照片或真实体验', 'err');
+    return;
+  }
+  const btn = $('#savePostTripRecord');
+  if(btn){ btn.disabled = true; btn.textContent = '保存中…'; }
+  try{
+    const r = await fetch('/api/post-trip/records', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(record)
+    });
+    const d = await r.json();
+    if(!d.ok) throw new Error(d.error || '保存失败');
+    postTripState.activeRecord = d.record;
+    postTripState.records = d.compact || d.records || [];
+    renderPostTripRecords(postTripState.records);
+    toast('✓ 已保存旅行后记录', 'ok');
+  }catch(err){
+    toast('保存失败：'+err.message, 'err');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = '保存旅行记录'; }
+  }
+}
+
+function bindPostTrip(){
+  renderPostTripPhotos();
+  $('#fillActualFromPlan')?.addEventListener('click', fillActualFromPlan);
+  $('#savePostTripRecord')?.addEventListener('click', savePostTripRecord);
+  $('#postTripPhotos')?.addEventListener('change', async e => {
+    try{
+      await uploadPostTripPhotos(e.target.files || []);
+      try{ e.target.value = ''; }catch{}
+    }catch(err){
+      toast('照片上传失败：'+err.message, 'err');
+    }
+  });
+}
+
 /* ---------- 渲染：原始素材 ---------- */
 function renderArchive(data){
   $('#archMarkdown').textContent   = data.markdown_text || '';
@@ -505,6 +649,7 @@ function setupDayObserver(){
 }
 
 function renderAll(data){
+  currentPlan = data.plan || null;
   renderHero(data.plan);
   renderDayLegend(data.plan);
   renderDays(data.plan);
@@ -852,12 +997,14 @@ function boot(){
     bindThemeChips();
     bindArchive();
     bindMemory();
+    bindPostTrip();
     bindSessionBtns();
     bindJobControl();
     $('#uploadForm')?.addEventListener('submit', onSubmit);
     $('#applyPref')?.addEventListener('click', applyPreference);
     tryLoadExisting();
     loadMemory();
+    loadPostTripRecords();
     checkResidualJob();
 
     // 防止 input 自动 scrollIntoView 把 body 顶上去
