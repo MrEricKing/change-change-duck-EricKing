@@ -341,17 +341,17 @@ function renderMemoryStatus(plan){
   const summary = (plan && plan.summary) || {};
   const matches = summary.memory_matches || [];
   if(summary.memory_context){
-    status.textContent = `已参考 ${matches.length || 1} 条旅行记忆`;
+    status.textContent = `本次使用 ${matches.length || 1} 条历史偏好`;
     status.classList.add('active');
     return;
   }
   const enabled = !!$('#useMemory')?.checked;
   if(enabled){
     const count = memoryState.memories?.length || 0;
-    status.textContent = count ? `将从 ${count} 条旅行记忆中检索` : '已开启，但还没有保存的旅行记忆';
+    status.textContent = count ? `将从 ${count} 条历史偏好中检索` : '已开启，但还没有保存的历史偏好';
     status.classList.toggle('active', !!count);
   }else{
-    status.textContent = '未使用旅行记忆';
+    status.textContent = '未使用历史偏好';
     status.classList.remove('active');
   }
 }
@@ -364,7 +364,7 @@ function renderMemoryTrace(plan){
   if(summary.memory_context){
     trace.textContent = summary.memory_context;
   }else{
-    trace.textContent = '生成路线后，这里会显示本次参考的记忆。';
+    trace.textContent = '生成路线后，这里会显示本次使用的历史偏好。';
   }
 }
 
@@ -411,7 +411,7 @@ async function previewMemory(){
 }
 
 async function saveMemoryReflection(){
-  const review = ($('#memoryReview')?.value || '').trim();
+  const review = ($('#postReviewText')?.value || '').trim();
   if(!review){ toast('请先写旅行复盘', 'err'); return; }
   const apiKey = $('#apiKey')?.value.trim() || '';
   if(!apiKey){ toast('需要 API Key 才能提炼记忆', 'err'); return; }
@@ -425,10 +425,9 @@ async function saveMemoryReflection(){
     const d = await r.json();
     if(!d.ok) throw new Error(d.error || '保存失败');
     memoryState.memories = d.memories || [];
-    $('#memoryReview').value = '';
     renderMemoryList();
     renderMemoryStatus();
-    toast('✓ 已保存旅行记忆', 'ok');
+    toast('✓ 已保存历史偏好', 'ok');
     await previewMemory();
   }catch(err){
     toast('保存失败：'+err.message, 'err');
@@ -817,20 +816,16 @@ function bindArchive(){
   window.addEventListener('keydown', e => {
     if(e.key === 'Escape'){
       modal?.classList.add('hidden');
-      $('#memoryModal')?.classList.add('hidden');
     }
   });
 }
 
 function bindMemory(){
-  const modal = $('#memoryModal');
   $('#openMemory')?.addEventListener('click', async () => {
-    modal?.classList.remove('hidden');
     await loadMemory();
-  });
-  $('#closeMemory')?.addEventListener('click', () => modal?.classList.add('hidden'));
-  modal?.addEventListener('click', e => {
-    if(e.target === modal) modal.classList.add('hidden');
+    $('#postMemoryLibrary')?.scrollIntoView({behavior:'smooth', block:'center'});
+    $('#postMemoryLibrary')?.classList.add('flash-stop');
+    setTimeout(() => $('#postMemoryLibrary')?.classList.remove('flash-stop'), 1200);
   });
   $('#saveMemory')?.addEventListener('click', saveMemoryReflection);
   $('#previewMemory')?.addEventListener('click', previewMemory);

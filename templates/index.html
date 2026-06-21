@@ -62,37 +62,55 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
 /* ============================================================
    Bento 主网格
    header (60px)
-   ┌─────────┬───────────────────┬─────────────┐
-   │ left   │ map               │ right       │
-   │ (form  │                   │ (days       │
-   │ + duo) │                   │  scroll)    │
-   └─────────┴───────────────────┴─────────────┘
+   ┌─────────┬───────────────────┬─────────────┬─────────────┐
+   │ left   │ map               │ right       │ post        │
+   │ (form  │                   │ (days       │ (after      │
+   │ + duo) │                   │  scroll)    │  trip)      │
+   └─────────┴───────────────────┴─────────────┴─────────────┘
    footer (76px) condensed tips + total
    ============================================================ */
 .app{position:relative;z-index:1;height:100vh;height:100dvh;width:100vw;
   overflow:hidden;
   display:grid;
-  grid-template-columns:300px 1fr 340px;
+  grid-template-columns:300px minmax(560px,1fr) 330px 330px;
   grid-template-rows:80px 1fr 76px;
   grid-template-areas:
-    "head head head"
-    "left main right"
-    "left foot right";
+    "head head head head"
+    "left main right post"
+    "left foot right post";
   gap:10px;padding:10px 14px 14px;}
 
-@media (max-width:1280px){
-  .app{grid-template-columns:280px 1fr 300px;}
+@media (max-width:1680px){
+  .app{grid-template-columns:280px minmax(500px,1fr) 310px 310px;}
+}
+@media (max-width:1440px){
+  html,body{overflow:auto;height:auto;}
+  body{position:static;}
+  .app{height:auto;min-height:100vh;grid-template-columns:280px minmax(0,1fr) 300px;
+    grid-template-rows:70px minmax(620px,70vh) auto 76px;
+    grid-template-areas:
+      "head head head"
+      "left main right"
+      "left post post"
+      "left foot foot";}
+  .post{min-height:360px;}
 }
 @media (max-width:1080px){
-  .app{grid-template-columns:260px 1fr 280px;
+  .app{grid-template-columns:260px minmax(0,1fr);
     grid-template-rows:56px 1fr 76px;}
+  .app{grid-template-areas:
+      "head head"
+      "left main"
+      "post post"
+      "right right"
+      "foot foot";}
 }
 @media (max-width:880px){
   html,body{overflow:auto;height:auto;}
   .app{height:auto;grid-template-columns:minmax(0,1fr);
-    grid-template-rows:auto auto auto auto auto;
-    grid-template-areas:"head" "main" "left" "right" "foot";}
-  .app > *, .head, .left, .main, .right, .foot{min-width:0;width:100%;}
+    grid-template-rows:auto auto auto auto auto auto;
+    grid-template-areas:"head" "main" "left" "right" "post" "foot";}
+  .app > *, .head, .left, .main, .right, .post, .foot{min-width:0;width:100%;}
 }
 
 /* ============================================================
@@ -160,7 +178,7 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
 .apply-pref-btn:hover{transform:translate(-1px,-1px);box-shadow:3.5px 3.5px 0 var(--line);}
 .apply-pref-btn:disabled{opacity:.55;cursor:not-allowed;}
 
-/* 旅行记忆：复用手绘描边和贴纸语汇，保持在左侧表单内轻量呈现 */
+/* 历史偏好：Step 1 只保留轻量入口，管理与沉淀放在 Step 3 */
 .memory-strip{margin:7px 0 8px;background:var(--paper-2);
   border:1.5px dashed var(--line);border-radius:12px;padding:8px;
   box-shadow:2px 2px 0 rgba(43,33,24,0.18);}
@@ -175,14 +193,6 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
 .memory-open:hover{transform:translate(-1px,-1px);}
 .memory-status{margin-top:5px;color:var(--ink-3);font-size:10.5px;line-height:1.25;}
 .memory-status.active{color:var(--teal-2);font-weight:800;}
-.memory-dialog{width:min(980px,94vw);}
-.memory-modal-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-  gap:12px;padding:14px 18px 18px;overflow:auto;}
-.memory-panel-card{background:var(--paper-2);border:1.8px solid var(--line);
-  border-radius:14px;padding:12px;box-shadow:3px 3px 0 var(--line);
-  outline:1px dashed rgba(43,33,24,0.18);outline-offset:-5px;min-width:0;}
-.memory-panel-card:nth-child(1){background:#FFF1EB;transform:rotate(-0.2deg);}
-.memory-panel-card:nth-child(2){background:#F2F7EA;transform:rotate(0.2deg);}
 .memory-section-title{display:inline-flex;align-items:center;gap:6px;
   background:var(--yellow);border:1.4px solid var(--line);
   border-radius:var(--r-pill);padding:2px 10px;font-family:var(--font-display);
@@ -211,9 +221,6 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
   max-height:145px;overflow:auto;}
 .memory-empty{color:var(--ink-3);font-family:var(--font-hand);font-size:16px;
   text-align:center;padding:18px 8px;}
-@media (max-width:880px){
-  .memory-modal-body{grid-template-columns:1fr;}
-}
 
 /* ============================================================
    Bento Cell 通用 —— 加双层描边 + 手绘抖动
@@ -395,6 +402,50 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
    ============================================================ */
 .right{grid-area:right;min-height:0;}
 .right .cell{height:100%;}
+
+/* ============================================================
+   POST: STEP 3 旅行后记录
+   ============================================================ */
+.post{grid-area:post;min-height:0;}
+.post .cell{height:100%;}
+.post .cell-head{padding-bottom:5px;}
+.post-body{display:flex;flex-direction:column;gap:10px;}
+.post-section{background:var(--paper-2);border:1.6px solid var(--line);
+  border-radius:14px;padding:10px;box-shadow:2.5px 2.5px 0 var(--line);
+  outline:1px dashed rgba(43,33,24,0.18);outline-offset:-5px;min-width:0;}
+.post-section:nth-child(1){background:#FFF1EB;transform:rotate(-0.15deg);}
+.post-section:nth-child(2){background:#F2F7EA;transform:rotate(0.15deg);}
+.post-section:nth-child(3){background:#F6F0FF;transform:rotate(-0.1deg);}
+.post-section.flash-stop{box-shadow:0 0 0 3px var(--yellow),3px 3px 0 var(--line);}
+.post-section-title{display:flex;align-items:center;justify-content:space-between;
+  gap:8px;margin-bottom:8px;}
+.post-section-title b{display:inline-flex;align-items:center;gap:5px;
+  background:var(--yellow);border:1.4px solid var(--line);
+  border-radius:var(--r-pill);padding:2px 10px;font-family:var(--font-display);
+  font-size:11.5px;box-shadow:1.5px 1.5px 0 var(--line);}
+.post-section-title small{color:var(--ink-3);font-size:10.5px;text-align:right;}
+.post-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;}
+.post-btn{background:var(--teal);color:#fff;border:1.5px solid var(--line);
+  border-radius:10px;padding:6px 9px;font-family:var(--font-display);
+  font-weight:800;font-size:11.5px;cursor:pointer;box-shadow:2.5px 2.5px 0 var(--line);
+  transition:transform .1s, box-shadow .1s;}
+.post-btn.secondary{background:#fff;color:var(--ink);}
+.post-btn.warm{background:var(--coral);color:var(--ink);}
+.post-btn:hover{transform:translate(-1px,-1px);box-shadow:3.5px 3.5px 0 var(--line);}
+.post-btn:disabled{opacity:.55;cursor:not-allowed;transform:none;}
+.post-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.post-photo-list{display:flex;gap:6px;overflow-x:auto;padding:3px 1px 1px;}
+.post-photo-chip{flex:0 0 auto;max-width:110px;background:#fff;border:1.2px solid var(--line);
+  border-radius:9px;padding:3px 6px;font-size:10px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;box-shadow:1.5px 1.5px 0 var(--line);}
+.post-record-list{display:flex;flex-direction:column;gap:7px;max-height:130px;overflow:auto;}
+.post-record-item{background:#fff;border:1.3px solid var(--line);border-radius:10px;
+  padding:7px 8px;box-shadow:2px 2px 0 var(--line);font-size:11px;}
+.post-record-title{display:flex;justify-content:space-between;gap:8px;font-family:var(--font-display);
+  font-weight:900;}
+.post-output{white-space:pre-wrap;background:#fffcf3;border:1.4px dashed var(--line);
+  border-radius:10px;padding:8px;margin-top:8px;font-size:11px;color:var(--ink-2);
+  max-height:230px;overflow:auto;}
 
 /* 日色图例（cell-body 上方一行小药丸） */
 .day-legend{display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 8px;
@@ -722,11 +773,11 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
             <div class="memory-row">
               <label class="memory-toggle">
                 <input type="checkbox" id="useMemory"/>
-                <span>🧠 生成时参考旅行记忆</span>
+                <span>🧠 生成时参考已选历史偏好</span>
               </label>
-              <button type="button" class="memory-open" id="openMemory">记忆本</button>
+              <button type="button" class="memory-open" id="openMemory">从历史偏好中选择</button>
             </div>
-            <div class="memory-status" id="memoryStatus">未使用旅行记忆</div>
+            <div class="memory-status" id="memoryStatus">未使用历史偏好</div>
           </div>
 
           <div class="ff" style="margin-top:4px;"><label>🔑 API Key</label>
@@ -787,6 +838,102 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
     </div>
   </aside>
 
+  <!-- ============ POST：旅行后记录 ============ -->
+  <aside class="post">
+    <div class="cell post-cell">
+      <div class="cell-head">
+        <span class="cell-tag blue">🧾 STEP 3 · 旅行后记录</span>
+        <h2 class="cell-title">复盘 · 沉淀</h2>
+      </div>
+      <div class="cell-body post-body">
+        <section class="post-section" id="postTripRecordSection">
+          <div class="post-section-title">
+            <b>🧳 实际行程</b>
+            <small>记录真实游玩结果</small>
+          </div>
+          <div class="ff">
+            <label>复盘标题</label>
+            <input id="postTripTitle" placeholder="例：东京四日游真实复盘"/>
+          </div>
+          <div class="post-mini-grid">
+            <div class="ff">
+              <label>实际花费</label>
+              <input id="postActualCost" placeholder="例：¥3200"/>
+            </div>
+            <div class="ff">
+              <label>实际节奏</label>
+              <select id="postActualPace">
+                <option value="">未选择</option>
+                <option value="偏轻松">偏轻松</option>
+                <option value="刚刚好">刚刚好</option>
+                <option value="偏赶">偏赶</option>
+                <option value="太累">太累</option>
+              </select>
+            </div>
+          </div>
+          <div class="ff">
+            <label>实际去了哪里</label>
+            <textarea id="postActualPlaces" rows="2" placeholder="每行一个地点，或用顿号/逗号分隔"></textarea>
+          </div>
+          <div class="post-mini-grid">
+            <div class="ff">
+              <label>没去成</label>
+              <textarea id="postSkippedPlaces" rows="2" placeholder="例：浅草寺，因为排队太久"></textarea>
+            </div>
+            <div class="ff">
+              <label>新增发现</label>
+              <textarea id="postAddedPlaces" rows="2" placeholder="例：巷子里的本地拉面店"></textarea>
+            </div>
+          </div>
+          <div class="ff">
+            <label>真实体验</label>
+            <textarea id="postReviewText" rows="4" placeholder="写下喜欢、踩坑、体力、交通、预算、同行人感受等。"></textarea>
+          </div>
+          <div class="ff">
+            <label>游玩照片</label>
+            <input type="file" id="postTripPhotos" accept="image/*" multiple/>
+            <div class="post-photo-list" id="postPhotoList"></div>
+          </div>
+          <div class="post-actions">
+            <button type="button" class="post-btn secondary" id="fillActualFromPlan">填入计划地点</button>
+            <button type="button" class="post-btn" id="savePostTripRecord">保存旅行记录</button>
+          </div>
+          <div class="post-record-list" id="postRecordList">
+            <div class="memory-empty">还没有旅行后记录</div>
+          </div>
+        </section>
+
+        <section class="post-section" id="postMemoryLibrary">
+          <div class="post-section-title">
+            <b>🧠 历史偏好库</b>
+            <small>选择后供 Step 1 使用</small>
+          </div>
+          <div class="memory-list" id="memoryList">
+            <div class="memory-empty">还没有历史偏好</div>
+          </div>
+          <div class="post-actions">
+            <button type="button" class="post-btn" id="saveMemory">提炼并保存偏好</button>
+            <button type="button" class="post-btn secondary" id="previewMemory">预览已选偏好</button>
+          </div>
+          <div class="memory-context" id="memoryContext">已选偏好的检索结果会显示在这里。</div>
+          <div class="memory-context" id="memoryPlanTrace">生成路线后，这里会显示本次使用的历史偏好。</div>
+        </section>
+
+        <section class="post-section" id="postTripOutcome">
+          <div class="post-section-title">
+            <b>📌 复盘成果</b>
+            <small>攻略、评价与记忆</small>
+          </div>
+          <div class="post-actions">
+            <button type="button" class="post-btn warm" id="generatePostTripGuide">生成旅行后攻略</button>
+            <button type="button" class="post-btn secondary" id="evaluateVideo">评价投递视频</button>
+          </div>
+          <div class="post-output" id="postTripOutput">旅行后攻略和视频评价会显示在这里。</div>
+        </section>
+      </div>
+    </div>
+  </aside>
+
   <!-- ============ FOOT：Tips + Total + Archive ============ -->
   <footer class="foot">
     <div class="contrib-panel">
@@ -826,38 +973,6 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
     <div id="pane-ocr"      class="pane"><pre id="archOcr"></pre></div>
     <div id="pane-fused"    class="pane"><pre id="archFused"></pre></div>
     <div id="pane-frames"   class="pane"><div id="archFrames" class="frames-grid"></div></div>
-  </div>
-</div>
-
-<!-- ====== 旅行记忆 modal ====== -->
-<div class="modal hidden" id="memoryModal">
-  <div class="modal-dialog memory-dialog">
-    <div class="modal-head">
-      <span class="cell-tag mint">🧠 旅行记忆本</span>
-      <button class="modal-close" id="closeMemory">×</button>
-    </div>
-    <div class="memory-modal-body">
-      <section class="memory-panel-card">
-        <div class="memory-section-title">旅行后复盘</div>
-        <div class="ff">
-          <label>写下真实体验</label>
-          <textarea id="memoryReview" rows="8"
-            placeholder="例：这次杭州两日游最喜欢湖边慢走和本地小吃，不喜欢排队网红店；第二天 6 个点太累，下次每天 3-4 个点更舒服。"></textarea>
-        </div>
-        <div class="memory-actions">
-          <button type="button" class="memory-action-btn" id="saveMemory">🧠 提炼并保存</button>
-          <button type="button" class="memory-action-btn secondary" id="previewMemory">🔎 检索当前偏好</button>
-        </div>
-        <div class="memory-context" id="memoryContext">检索结果会显示在这里。</div>
-      </section>
-      <section class="memory-panel-card">
-        <div class="memory-section-title">已保存记忆</div>
-        <div class="memory-list" id="memoryList">
-          <div class="memory-empty">还没有旅行记忆</div>
-        </div>
-        <div class="memory-context" id="memoryPlanTrace">生成路线后，这里会显示本次参考的记忆。</div>
-      </section>
-    </div>
   </div>
 </div>
 
