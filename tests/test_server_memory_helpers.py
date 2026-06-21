@@ -29,6 +29,19 @@ class ServerMemoryHelpersTest(unittest.TestCase):
         self.assertEqual(server._selected_memory_ids({"selected_memory_ids": []}), [])
         self.assertEqual(server._selected_memory_ids({"selected_memory_ids": "a,b"}), ["a", "b"])
 
+    def test_record_from_post_trip_body_accepts_inline_record(self):
+        record = server._record_from_post_trip_body({
+            "record": {
+                "title": "东京复盘",
+                "actual_places": ["浅草寺"],
+                "review_text": "视频推荐基本靠谱。",
+            }
+        }, {"title": "东京四日游攻略", "itinerary": []})
+
+        self.assertEqual(record["title"], "东京复盘")
+        self.assertEqual(record["actual_places"], ["浅草寺"])
+        self.assertEqual(record["linked_plan"]["title"], "东京四日游攻略")
+
 
 if __name__ == "__main__":
     unittest.main()

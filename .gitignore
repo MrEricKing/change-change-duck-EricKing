@@ -17,6 +17,8 @@ output/_*
 output/map.html
 output/travel_memory.json
 output/post_trip_records.json
+output/post_trip_guide.md
+output/post_trip_video_evaluation.md
 output/post_trip_photos/*
 
 # IDE

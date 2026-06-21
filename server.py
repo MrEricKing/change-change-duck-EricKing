@@ -19,6 +19,8 @@ import threading
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import requests
+
 # 把 venv 的 Scripts/ 目录加进 PATH，让 pipeline.py 里 shutil.which("yt-dlp") 能找到
 _venv_scripts = Path(sys.executable).parent
 os.environ["PATH"] = str(_venv_scripts) + os.pathsep + os.environ.get("PATH", "")
@@ -136,6 +138,56 @@ def _selected_memory_ids(body: Dict):
     if isinstance(raw, list):
         return [str(x).strip() for x in raw if str(x).strip()]
     return []
+
+
+def _read_output_text(name: str, *, max_chars: int = 5000) -> str:
+    path = OUT_DIR / name
+    if not path.exists():
+        return ""
+    try:
+        return path.read_text(encoding="utf-8", errors="ignore")[:max_chars]
+    except Exception:
+        return ""
+
+
+def _record_from_post_trip_body(body: Dict, plan: Optional[Dict]) -> Optional[Dict]:
+    record_id = (body.get("record_id") or "").strip()
+    if record_id:
+        return post_trip.get_record(record_id)
+    raw = body.get("record") if isinstance(body.get("record"), dict) else body
+    if not isinstance(raw, dict):
+        return None
+    record = post_trip.normalize_record(raw, plan=plan)
+    if (
+        not record.get("review_text")
+        and not record.get("actual_places")
+        and not record.get("skipped_places")
+        and not record.get("added_places")
+        and not record.get("photos")
+    ):
+        return post_trip.latest_record()
+    return record
+
+
+def _llm_text(api_key: str, *, base_url: str, model: str, system: str, user: str) -> str:
+    url = base_url.rstrip("/") + "/v1/chat/completions"
+    resp = requests.post(
+        url,
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "temperature": 0.35,
+        },
+        timeout=120,
+    )
+    if resp.status_code >= 400:
+        raise RuntimeError(f"LLM 请求失败 {resp.status_code}: {resp.text[:400]}")
+    data = resp.json()
+    return (data.get("choices", [{}])[0].get("message", {}).get("content") or "").strip()
 
 
 def _memory_query_from_generate(body: Dict, *, share: str, themes: List[str]) -> Dict:
@@ -525,6 +577,100 @@ def api_post_trip_photos():
             "caption": "",
         })
     return jsonify({"ok": True, "photos": photos})
+
+
+@app.route("/api/post-trip/guide", methods=["POST"])
+def api_post_trip_guide():
+    """基于真实旅行后记录生成可展示的旅行后攻略。"""
+    body = request.get_json(silent=True) or {}
+    api_key = body.get("api_key") or os.getenv("VECTRUST_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
+    base_url = body.get("base_url") or os.getenv("OPENAI_BASE_URL") or ""
+    model = body.get("model") or os.getenv("OPENAI_MODEL") or ""
+    if not api_key:
+        return jsonify({"ok": False, "error": "缺少 API Key"}), 400
+
+    plan = STATE["plan"] or _load_existing_plan()
+    record = _record_from_post_trip_body(body, plan)
+    if not record:
+        return jsonify({"ok": False, "error": "请先保存或填写旅行后记录"}), 400
+
+    try:
+        from pipeline import DEFAULT_BASE_URL, DEFAULT_MODEL
+        plan_brief = json.dumps(post_trip.plan_snapshot(plan), ensure_ascii=False, indent=2)
+        record_text = post_trip.record_review_text(record)
+        fused = _read_output_text("fused.txt", max_chars=6000)
+        transcript = _read_output_text("transcript.txt", max_chars=3000)
+        user = (
+            "请基于一次真实旅行后的记录，生成一份适合课程展示和普通读者阅读的旅行后攻略。\n\n"
+            "要求：\n"
+            "1. 用 Markdown 输出。\n"
+            "2. 明确区分「原计划」与「实际体验」。\n"
+            "3. 引用投递视频/融合素材中的线索，但不要编造不存在的来源。\n"
+            "4. 包含真实路线、值得保留的安排、踩坑与修正建议、适合人群、预算/节奏复盘。\n"
+            "5. 如果有照片素材，只按文件名或说明引用，不要假装看到了照片内容。\n\n"
+            f"【原计划摘要】\n{plan_brief}\n\n"
+            f"【旅行后记录】\n{record_text}\n\n"
+            f"【投递视频融合素材节选】\n{fused or '无'}\n\n"
+            f"【转写节选】\n{transcript or '无'}"
+        )
+        text = _llm_text(
+            api_key,
+            base_url=base_url or DEFAULT_BASE_URL,
+            model=model or DEFAULT_MODEL,
+            system="你是旅行复盘编辑，擅长把真实游玩记录整理成克制、可信、可执行的旅行攻略。",
+            user=user,
+        )
+        (OUT_DIR / "post_trip_guide.md").write_text(text, encoding="utf-8")
+        return jsonify({"ok": True, "guide": text, "record": record})
+    except Exception as e:
+        logger.exception("post-trip guide failed")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/post-trip/evaluate-video", methods=["POST"])
+def api_post_trip_evaluate_video():
+    """评价投递视频对实际旅行的参考价值。"""
+    body = request.get_json(silent=True) or {}
+    api_key = body.get("api_key") or os.getenv("VECTRUST_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
+    base_url = body.get("base_url") or os.getenv("OPENAI_BASE_URL") or ""
+    model = body.get("model") or os.getenv("OPENAI_MODEL") or ""
+    if not api_key:
+        return jsonify({"ok": False, "error": "缺少 API Key"}), 400
+
+    plan = STATE["plan"] or _load_existing_plan()
+    record = _record_from_post_trip_body(body, plan)
+    if not record:
+        return jsonify({"ok": False, "error": "请先保存或填写旅行后记录"}), 400
+
+    try:
+        from pipeline import DEFAULT_BASE_URL, DEFAULT_MODEL
+        plan_brief = json.dumps(post_trip.plan_snapshot(plan), ensure_ascii=False, indent=2)
+        record_text = post_trip.record_review_text(record)
+        fused = _read_output_text("fused.txt", max_chars=7000)
+        user = (
+            "请评价投递视频对这次实际旅行的参考价值，输出 Markdown。\n\n"
+            "必须包含这四个小节：\n"
+            "## 视频推荐靠谱的地方\n"
+            "## 视频滤镜或信息不足的地方\n"
+            "## 实地超预期或个人发现\n"
+            "## 下次规划应该如何修正\n\n"
+            "评价要基于证据：原计划、视频融合素材、实际旅行后记录。不要假装知道视频画面之外的信息。\n\n"
+            f"【原计划摘要与视频贡献】\n{plan_brief}\n\n"
+            f"【旅行后记录】\n{record_text}\n\n"
+            f"【投递视频融合素材节选】\n{fused or '无'}"
+        )
+        text = _llm_text(
+            api_key,
+            base_url=base_url or DEFAULT_BASE_URL,
+            model=model or DEFAULT_MODEL,
+            system="你是短视频旅行信息审稿人，擅长比较种草内容、AI 计划和真实体验之间的差距。",
+            user=user,
+        )
+        (OUT_DIR / "post_trip_video_evaluation.md").write_text(text, encoding="utf-8")
+        return jsonify({"ok": True, "evaluation": text, "record": record})
+    except Exception as e:
+        logger.exception("post-trip video evaluation failed")
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 @app.route("/api/revise", methods=["POST"])

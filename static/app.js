@@ -615,10 +615,43 @@ async function savePostTripRecord(){
   }
 }
 
+async function runPostTripOutcome(kind){
+  const apiKey = $('#apiKey')?.value.trim() || '';
+  if(!apiKey){ toast('需要 API Key 才能生成复盘成果', 'err'); return; }
+  const record = collectPostTripRecord();
+  if(!record.review_text && !record.actual_places.length && !record.photos.length){
+    toast('请先记录实际行程、照片或真实体验', 'err');
+    return;
+  }
+  const endpoint = kind === 'guide' ? '/api/post-trip/guide' : '/api/post-trip/evaluate-video';
+  const btn = kind === 'guide' ? $('#generatePostTripGuide') : $('#evaluateVideo');
+  const out = $('#postTripOutput');
+  const oldText = btn?.textContent || '';
+  if(btn){ btn.disabled = true; btn.textContent = kind === 'guide' ? '生成攻略中…' : '评价视频中…'; }
+  if(out) out.textContent = 'AI 正在整理复盘成果…';
+  try{
+    const r = await fetch(endpoint, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ api_key: apiKey, record })
+    });
+    const d = await r.json();
+    if(!d.ok) throw new Error(d.error || '生成失败');
+    if(out) out.textContent = d.guide || d.evaluation || '';
+    toast(kind === 'guide' ? '✓ 已生成旅行后攻略' : '✓ 已完成视频评价', 'ok');
+  }catch(err){
+    if(out) out.textContent = '生成失败：' + err.message;
+    toast('生成失败：'+err.message, 'err');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = oldText; }
+  }
+}
+
 function bindPostTrip(){
   renderPostTripPhotos();
   $('#fillActualFromPlan')?.addEventListener('click', fillActualFromPlan);
   $('#savePostTripRecord')?.addEventListener('click', savePostTripRecord);
+  $('#generatePostTripGuide')?.addEventListener('click', () => runPostTripOutcome('guide'));
+  $('#evaluateVideo')?.addEventListener('click', () => runPostTripOutcome('evaluation'));
   $('#postTripPhotos')?.addEventListener('change', async e => {
     try{
       await uploadPostTripPhotos(e.target.files || []);
