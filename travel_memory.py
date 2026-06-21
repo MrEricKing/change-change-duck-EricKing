@@ -194,8 +194,12 @@ def retrieve_memories(
     *,
     max_results: int = 3,
     path: Path = MEMORY_PATH,
+    memory_ids: Optional[Iterable[str]] = None,
 ) -> Dict:
     memories = list_memories(path)
+    if memory_ids is not None:
+        allowed = {str(x) for x in memory_ids if str(x)}
+        memories = [m for m in memories if m.get("id") in allowed]
     query_text = _query_blob(query)
     query_terms = _text_terms(query_text)
     scored = []

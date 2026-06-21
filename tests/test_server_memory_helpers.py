@@ -24,6 +24,11 @@ class ServerMemoryHelpersTest(unittest.TestCase):
     def test_empty_memory_context_does_not_change_text(self):
         self.assertEqual(server._inject_memory_text("原始要求", ""), "原始要求")
 
+    def test_selected_memory_ids_distinguishes_legacy_and_empty_selection(self):
+        self.assertIsNone(server._selected_memory_ids({}))
+        self.assertEqual(server._selected_memory_ids({"selected_memory_ids": []}), [])
+        self.assertEqual(server._selected_memory_ids({"selected_memory_ids": "a,b"}), ["a", "b"])
+
 
 if __name__ == "__main__":
     unittest.main()

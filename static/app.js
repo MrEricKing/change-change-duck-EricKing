@@ -39,7 +39,7 @@ const MAX_FILES = 5;
 let pickedFiles = [];  // [{file: File, path: ""}]
 let fileInput, fileEmpty, filePicked;
 let currentPlan = null;
-const memoryState = { memories: [], lastContext: '', lastMatches: [] };
+const memoryState = { memories: [], selectedIds: new Set(), lastContext: '', lastMatches: [] };
 const postTripState = { records: [], photos: [], activeRecord: null };
 
 function bindFile(){
@@ -315,6 +315,24 @@ function currentMemoryQuery(){
   };
 }
 
+function selectedMemoryIds(){
+  return [...(memoryState.selectedIds || new Set())];
+}
+
+function memoryRequestPayload(){
+  return {
+    ...currentMemoryQuery(),
+    selected_memory_ids: selectedMemoryIds(),
+  };
+}
+
+function updateMemorySelection(id, selected){
+  if(!id) return;
+  if(selected) memoryState.selectedIds.add(id);
+  else memoryState.selectedIds.delete(id);
+  renderMemoryStatus();
+}
+
 function renderMemoryList(){
   const box = $('#memoryList');
   if(!box) return;
@@ -324,17 +342,25 @@ function renderMemoryList(){
     return;
   }
   box.innerHTML = memories.slice(0, 12).map(m => {
+    const id = m.id || '';
+    const checked = memoryState.selectedIds.has(id) ? ' checked' : '';
     const liked = (m.liked || []).slice(0,3).map(x => `<span class="memory-tag">${esc(x)}</span>`).join('');
     const disliked = (m.disliked || []).slice(0,3).map(x => `<span class="memory-tag bad">${esc(x)}</span>`).join('');
     const date = (m.created_at || '').slice(0,10);
     return `<div class="memory-item">
       <div class="memory-item-title">
-        <span>${esc(m.trip_title || '旅行复盘')}</span>
+        <label class="memory-select-row">
+          <input type="checkbox" class="memory-select" data-memory-id="${esc(id)}"${checked}/>
+          <span>${esc(m.trip_title || '旅行复盘')}</span>
+        </label>
         <span class="memory-item-date">${esc(date)}</span>
       </div>
       <div class="memory-tags">${liked}${disliked}</div>
     </div>`;
   }).join('');
+  box.querySelectorAll('.memory-select').forEach(input => {
+    input.addEventListener('change', () => updateMemorySelection(input.dataset.memoryId, input.checked));
+  });
 }
 
 function renderMemoryStatus(plan){
@@ -349,9 +375,14 @@ function renderMemoryStatus(plan){
   }
   const enabled = !!$('#useMemory')?.checked;
   if(enabled){
+    const selected = selectedMemoryIds().length;
     const count = memoryState.memories?.length || 0;
-    status.textContent = count ? `将从 ${count} 条历史偏好中检索` : '已开启，但还没有保存的历史偏好';
-    status.classList.toggle('active', !!count);
+    if(selected){
+      status.textContent = `将使用已选择的 ${selected} 条历史偏好`;
+    }else{
+      status.textContent = count ? '已开启，请先选择历史偏好' : '已开启，但还没有保存的历史偏好';
+    }
+    status.classList.toggle('active', !!selected);
   }else{
     status.textContent = '未使用历史偏好';
     status.classList.remove('active');
@@ -376,6 +407,8 @@ async function loadMemory(){
     const d = await r.json();
     if(!d.ok) throw new Error(d.error || '加载失败');
     memoryState.memories = d.memories || [];
+    const valid = new Set(memoryState.memories.map(m => m.id).filter(Boolean));
+    memoryState.selectedIds = new Set(selectedMemoryIds().filter(id => valid.has(id)));
     renderMemoryList();
     renderMemoryStatus();
   }catch(err){
@@ -398,10 +431,15 @@ function renderMemoryRetrieve(context, matches){
 }
 
 async function previewMemory(){
+  if(!selectedMemoryIds().length){
+    renderMemoryRetrieve('', []);
+    toast('请先勾选历史偏好', 'err');
+    return;
+  }
   try{
     const r = await fetch('/api/memory/retrieve', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(currentMemoryQuery())
+      body: JSON.stringify(memoryRequestPayload())
     });
     const d = await r.json();
     if(!d.ok) throw new Error(d.error || '检索失败');
@@ -413,7 +451,17 @@ async function previewMemory(){
 }
 
 async function saveMemoryReflection(){
-  const review = ($('#postReviewText')?.value || '').trim();
+  const record = collectPostTripRecord();
+  const review = [
+    record.title ? `标题：${record.title}` : '',
+    record.actual_places.length ? `实际去了：${record.actual_places.join('、')}` : '',
+    record.skipped_places.length ? `没去成：${record.skipped_places.join('、')}` : '',
+    record.added_places.length ? `新增发现：${record.added_places.join('、')}` : '',
+    record.actual_cost ? `实际花费：${record.actual_cost}` : '',
+    record.actual_pace ? `实际节奏：${record.actual_pace}` : '',
+    record.review_text ? `真实体验：${record.review_text}` : '',
+    record.photos.length ? `照片素材：${record.photos.map(p => p.name).join('、')}` : '',
+  ].filter(Boolean).join('\n');
   if(!review){ toast('请先写旅行复盘', 'err'); return; }
   const apiKey = $('#apiKey')?.value.trim() || '';
   if(!apiKey){ toast('需要 API Key 才能提炼记忆', 'err'); return; }
@@ -427,6 +475,7 @@ async function saveMemoryReflection(){
     const d = await r.json();
     if(!d.ok) throw new Error(d.error || '保存失败');
     memoryState.memories = d.memories || [];
+    if(d.memory?.id) memoryState.selectedIds.add(d.memory.id);
     renderMemoryList();
     renderMemoryStatus();
     toast('✓ 已保存历史偏好', 'ok');
@@ -735,6 +784,11 @@ async function applyPreference(){
   if(!text){ toast('请先在补充偏好中写点什么', 'err'); return; }
   const apiKey = $('#apiKey').value.trim();
   if(!apiKey){ toast('需要 API Key 才能调路线', 'err'); return; }
+  if($('#useMemory')?.checked && !selectedMemoryIds().length){
+    toast('请先从历史偏好中选择至少 1 条', 'err');
+    $('#postMemoryLibrary')?.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
 
   const btn = $('#applyPref');
   btn.disabled = true; btn.textContent = '✏️ 调整中…';
@@ -745,6 +799,7 @@ async function applyPreference(){
         instruction: text,
         api_key: apiKey,
         use_memory: !!$('#useMemory')?.checked,
+        selected_memory_ids: selectedMemoryIds(),
       })
     });
     const d = await r.json();
@@ -766,6 +821,11 @@ async function onSubmit(e){
   const files = (window.getPickedFiles?.() || []).map(p => p.file);
   if(!files.length){ toast('请先选择至少 1 个视频文件', 'err'); return; }
   const apiKey = $('#apiKey').value.trim();
+  if($('#useMemory')?.checked && !selectedMemoryIds().length){
+    toast('请先从历史偏好中选择至少 1 条', 'err');
+    $('#postMemoryLibrary')?.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
 
   $('#progStep').textContent = `上传 ${files.length} 个视频…`;
   $('#progress').classList.remove('hidden');
@@ -804,6 +864,7 @@ async function onSubmit(e){
     themes: $$('.theme-chip.on').map(c => c.dataset.theme),
     extra: ($('#extra')?.value || '').trim(),
     use_memory: !!$('#useMemory')?.checked,
+    selected_memory_ids: selectedMemoryIds(),
     geocode: true,
   };
 

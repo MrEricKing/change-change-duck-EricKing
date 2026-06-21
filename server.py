@@ -123,6 +123,21 @@ def _as_bool(value, default: bool = False) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "y", "on", "是", "开"}
 
 
+def _selected_memory_ids(body: Dict):
+    """None means legacy all-memory retrieval; [] means user selected nothing."""
+    if "selected_memory_ids" in body:
+        raw = body.get("selected_memory_ids") or []
+    elif "memory_ids" in body:
+        raw = body.get("memory_ids") or []
+    else:
+        return None
+    if isinstance(raw, str):
+        return [x.strip() for x in raw.split(",") if x.strip()]
+    if isinstance(raw, list):
+        return [str(x).strip() for x in raw if str(x).strip()]
+    return []
+
+
 def _memory_query_from_generate(body: Dict, *, share: str, themes: List[str]) -> Dict:
     return {
         "destination": body.get("destination") or body.get("city") or "",
@@ -430,7 +445,11 @@ def api_memory_retrieve():
     """根据本次旅行需求检索历史旅行记忆，便于调试和报告展示。"""
     body = request.get_json(silent=True) or {}
     try:
-        result = travel_memory.retrieve_memories(body, max_results=int(body.get("max_results") or 3))
+        result = travel_memory.retrieve_memories(
+            body,
+            max_results=int(body.get("max_results") or 3),
+            memory_ids=_selected_memory_ids(body),
+        )
         return jsonify({
             "ok": True,
             "context": result.get("context", ""),
@@ -532,7 +551,10 @@ def api_revise():
         effective_instr = instr
         if use_memory:
             memory_retrieval = travel_memory.retrieve_memories(
-                _memory_query_from_revise(plan, instr), max_results=3)
+                _memory_query_from_revise(plan, instr),
+                max_results=3,
+                memory_ids=_selected_memory_ids(body),
+            )
             effective_instr = _inject_memory_text(instr, memory_retrieval.get("context", ""))
 
         new_plan = revise_plan(api_key, plan, effective_instr,
@@ -609,7 +631,10 @@ def api_generate():
     effective_extra = extra
     if use_memory:
         memory_retrieval = travel_memory.retrieve_memories(
-            _memory_query_from_generate(body, share=share, themes=themes), max_results=3)
+            _memory_query_from_generate(body, share=share, themes=themes),
+            max_results=3,
+            memory_ids=_selected_memory_ids(body),
+        )
         effective_extra = _inject_memory_text(extra, memory_retrieval.get("context", ""))
 
     with STATE["lock"]:

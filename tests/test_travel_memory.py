@@ -48,6 +48,27 @@ class TravelMemoryTest(unittest.TestCase):
             self.assertIn("本地小吃", result["context"])
             self.assertIn("只作为偏好证据", result["context"])
 
+    def test_retrieve_can_filter_selected_memory_ids(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "memory.json"
+            first = travel_memory.add_memory({
+                "trip_title": "杭州复盘",
+                "liked": ["本地小吃"],
+                "source_text": "喜欢小吃",
+            }, path=path)
+            travel_memory.add_memory({
+                "trip_title": "雪山复盘",
+                "liked": ["高海拔徒步"],
+                "source_text": "喜欢徒步",
+            }, path=path)
+
+            result = travel_memory.retrieve_memories({
+                "extra": "想吃本地小吃，也可以徒步",
+            }, path=path, memory_ids=[first["id"]])
+
+            self.assertEqual(len(result["matches"]), 1)
+            self.assertEqual(result["matches"][0]["memory"]["id"], first["id"])
+
     def test_annotate_plan_with_memory(self):
         retrieval = {
             "context": "用户偏好城市漫步。",
