@@ -17,7 +17,7 @@ import os
 import sys
 import threading
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 # 把 venv 的 Scripts/ 目录加进 PATH，让 pipeline.py 里 shutil.which("yt-dlp") 能找到
 _venv_scripts = Path(sys.executable).parent
@@ -45,6 +45,7 @@ _ensure_ffmpeg_on_path()
 from flask import Flask, jsonify, render_template, request, send_from_directory
 
 import geocode
+import travel_memory
 from visualize import render_map
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -109,6 +110,55 @@ def _job_is_active() -> bool:
 
 
 MAX_UPLOAD_FILES = 5
+
+
+def _as_bool(value, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return str(value).strip().lower() in {"1", "true", "yes", "y", "on", "是", "开"}
+
+
+def _memory_query_from_generate(body: Dict, *, share: str, themes: List[str]) -> Dict:
+    return {
+        "destination": body.get("destination") or body.get("city") or "",
+        "city": body.get("city") or "",
+        "days": body.get("days"),
+        "people": body.get("people"),
+        "budget": body.get("budget"),
+        "travel_style": body.get("travel_style") or "",
+        "target_group": body.get("target_group") or "",
+        "themes": themes,
+        "extra": body.get("extra") or "",
+        "share_text": share or "",
+    }
+
+
+def _memory_query_from_revise(plan: Dict, instruction: str) -> Dict:
+    return {
+        "destination": plan.get("city") or "",
+        "city": plan.get("city") or "",
+        "days": plan.get("days"),
+        "people": plan.get("people"),
+        "budget": plan.get("budget_total") or plan.get("budget_per_day"),
+        "travel_style": plan.get("travel_style") or "",
+        "target_group": plan.get("target_group") or "",
+        "themes": plan.get("themes") or [],
+        "extra": instruction,
+    }
+
+
+def _inject_memory_text(text: str, context: str) -> str:
+    if not context:
+        return text
+    base = text or ""
+    return (
+        f"{base}\n\n【个人旅行记忆】\n{context}\n"
+        "请把这些记忆作为偏好证据：优先继承长期偏好，但如果本次用户要求不同，以本次要求为准。"
+    ).strip()
 
 
 # -------------------- 视频贡献值估算 --------------------
@@ -338,6 +388,58 @@ def api_geocode():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
+@app.route("/api/memory", methods=["GET"])
+def api_memory_list():
+    """返回本地旅行记忆。记忆只保存在 output/travel_memory.json。"""
+    memories = travel_memory.list_memories()
+    return jsonify({"ok": True, "memories": memories, "count": len(memories)})
+
+
+@app.route("/api/memory/reflect", methods=["POST"])
+def api_memory_reflect():
+    """把一次旅行复盘提炼成结构化旅行记忆并保存。"""
+    body = request.get_json(silent=True) or {}
+    review_text = (body.get("review_text") or "").strip()
+    api_key = body.get("api_key") or os.getenv("VECTRUST_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
+    base_url = body.get("base_url") or os.getenv("OPENAI_BASE_URL") or ""
+    model = body.get("model") or os.getenv("OPENAI_MODEL") or ""
+
+    if not review_text:
+        return jsonify({"ok": False, "error": "请输入旅行复盘内容"}), 400
+    if not api_key:
+        return jsonify({"ok": False, "error": "缺少 API Key"}), 400
+
+    try:
+        from pipeline import DEFAULT_BASE_URL, DEFAULT_MODEL
+        memory = travel_memory.extract_memory_with_llm(
+            api_key=api_key,
+            review_text=review_text,
+            base_url=base_url or DEFAULT_BASE_URL,
+            model=model or DEFAULT_MODEL,
+        )
+        saved = travel_memory.add_memory(memory)
+        return jsonify({"ok": True, "memory": saved, "memories": travel_memory.list_memories()})
+    except Exception as e:
+        logger.exception("memory reflect failed")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/memory/retrieve", methods=["POST"])
+def api_memory_retrieve():
+    """根据本次旅行需求检索历史旅行记忆，便于调试和报告展示。"""
+    body = request.get_json(silent=True) or {}
+    try:
+        result = travel_memory.retrieve_memories(body, max_results=int(body.get("max_results") or 3))
+        return jsonify({
+            "ok": True,
+            "context": result.get("context", ""),
+            "matches": travel_memory.summarize_matches(result.get("matches") or []),
+        })
+    except Exception as e:
+        logger.exception("memory retrieve failed")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @app.route("/api/revise", methods=["POST"])
 def api_revise():
     body = request.get_json(silent=True) or {}
@@ -345,6 +447,7 @@ def api_revise():
     api_key = body.get("api_key") or os.getenv("VECTRUST_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
     base_url = body.get("base_url") or os.getenv("OPENAI_BASE_URL") or ""
     model = body.get("model") or os.getenv("OPENAI_MODEL") or ""
+    use_memory = _as_bool(body.get("use_memory"), False)
 
     if not instr:
         return jsonify({"ok": False, "error": "请输入修改诉求"}), 400
@@ -357,11 +460,19 @@ def api_revise():
 
     try:
         from pipeline import revise_plan, optimize_routes, DEFAULT_BASE_URL, DEFAULT_MODEL
-        new_plan = revise_plan(api_key, plan, instr,
+        memory_retrieval = None
+        effective_instr = instr
+        if use_memory:
+            memory_retrieval = travel_memory.retrieve_memories(
+                _memory_query_from_revise(plan, instr), max_results=3)
+            effective_instr = _inject_memory_text(instr, memory_retrieval.get("context", ""))
+
+        new_plan = revise_plan(api_key, plan, effective_instr,
                                base_url=base_url or DEFAULT_BASE_URL,
                                model=model or DEFAULT_MODEL)
         # 修改后也跑一遍路线优化
         new_plan = optimize_routes(new_plan)
+        travel_memory.annotate_plan_with_memory(new_plan, memory_retrieval)
         STATE["plan"] = new_plan
         _save_plan(new_plan)
         return jsonify({"ok": True, "plan": new_plan,
@@ -407,7 +518,8 @@ def api_generate():
         themes = [t.strip() for t in themes_raw.split(",") if t.strip()]
     else:
         themes = [str(t).strip() for t in themes_raw if str(t).strip()]
-    do_geocode = bool(body.get("geocode", True))
+    do_geocode = _as_bool(body.get("geocode"), True)
+    use_memory = _as_bool(body.get("use_memory"), False)
 
     if not share and not local_videos:
         return jsonify({"ok": False, "error": "请粘贴抖音文案 或 提供本地视频"}), 400
@@ -424,6 +536,13 @@ def api_generate():
             return jsonify({"ok": False, "error": f"本地视频不存在：{p}"}), 400
         abs_local_videos.append(str(p))
     local_video = abs_local_videos[0] if abs_local_videos else ""
+
+    memory_retrieval = None
+    effective_extra = extra
+    if use_memory:
+        memory_retrieval = travel_memory.retrieve_memories(
+            _memory_query_from_generate(body, share=share, themes=themes), max_results=3)
+        effective_extra = _inject_memory_text(extra, memory_retrieval.get("context", ""))
 
     with STATE["lock"]:
         if _job_is_active():
@@ -459,10 +578,11 @@ def api_generate():
                 people=people,
                 travel_style=travel_style,
                 target_group=target_group,
-                extra=extra,
+                extra=effective_extra,
                 themes=themes,
             )
             plan = result["plan"]
+            travel_memory.annotate_plan_with_memory(plan, memory_retrieval)
             STATE["frames"] = result.get("frames") or []
 
             # 新版多视频流程已自带坐标；只在缺失时才走老地理编码

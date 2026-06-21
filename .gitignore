@@ -15,6 +15,7 @@ output/frames/*
 output/video_cache/
 output/_*
 output/map.html
+output/travel_memory.json
 
 # IDE
 .vscode/

@@ -89,9 +89,10 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
 }
 @media (max-width:880px){
   html,body{overflow:auto;height:auto;}
-  .app{height:auto;grid-template-columns:1fr;
+  .app{height:auto;grid-template-columns:minmax(0,1fr);
     grid-template-rows:auto auto auto auto auto;
     grid-template-areas:"head" "main" "left" "right" "foot";}
+  .app > *, .head, .left, .main, .right, .foot{min-width:0;width:100%;}
 }
 
 /* ============================================================
@@ -158,6 +159,61 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
   box-shadow:2.5px 2.5px 0 var(--line);transition:transform .1s,box-shadow .1s;}
 .apply-pref-btn:hover{transform:translate(-1px,-1px);box-shadow:3.5px 3.5px 0 var(--line);}
 .apply-pref-btn:disabled{opacity:.55;cursor:not-allowed;}
+
+/* 旅行记忆：复用手绘描边和贴纸语汇，保持在左侧表单内轻量呈现 */
+.memory-strip{margin:7px 0 8px;background:var(--paper-2);
+  border:1.5px dashed var(--line);border-radius:12px;padding:8px;
+  box-shadow:2px 2px 0 rgba(43,33,24,0.18);}
+.memory-row{display:flex;align-items:center;gap:7px;min-width:0;}
+.memory-toggle{display:flex;align-items:center;gap:6px;min-width:0;flex:1;
+  font-family:var(--font-display);font-weight:800;font-size:11.5px;cursor:pointer;}
+.memory-toggle input{accent-color:var(--teal);width:15px;height:15px;flex-shrink:0;}
+.memory-open{background:var(--lilac);border:1.4px solid var(--line);
+  border-radius:10px;padding:4px 10px;font-family:var(--font-display);
+  font-weight:800;font-size:11px;cursor:pointer;color:var(--ink);
+  box-shadow:2px 2px 0 var(--line);white-space:nowrap;}
+.memory-open:hover{transform:translate(-1px,-1px);}
+.memory-status{margin-top:5px;color:var(--ink-3);font-size:10.5px;line-height:1.25;}
+.memory-status.active{color:var(--teal-2);font-weight:800;}
+.memory-dialog{width:min(980px,94vw);}
+.memory-modal-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:12px;padding:14px 18px 18px;overflow:auto;}
+.memory-panel-card{background:var(--paper-2);border:1.8px solid var(--line);
+  border-radius:14px;padding:12px;box-shadow:3px 3px 0 var(--line);
+  outline:1px dashed rgba(43,33,24,0.18);outline-offset:-5px;min-width:0;}
+.memory-panel-card:nth-child(1){background:#FFF1EB;transform:rotate(-0.2deg);}
+.memory-panel-card:nth-child(2){background:#F2F7EA;transform:rotate(0.2deg);}
+.memory-section-title{display:inline-flex;align-items:center;gap:6px;
+  background:var(--yellow);border:1.4px solid var(--line);
+  border-radius:var(--r-pill);padding:2px 10px;font-family:var(--font-display);
+  font-weight:900;font-size:11.5px;box-shadow:1.5px 1.5px 0 var(--line);
+  margin-bottom:8px;}
+.memory-actions{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;}
+.memory-action-btn{background:var(--teal);color:#fff;border:1.5px solid var(--line);
+  border-radius:10px;padding:7px 11px;font-family:var(--font-display);
+  font-weight:800;font-size:12px;cursor:pointer;box-shadow:2.5px 2.5px 0 var(--line);}
+.memory-action-btn.secondary{background:#fff;color:var(--ink);}
+.memory-action-btn:hover{transform:translate(-1px,-1px);}
+.memory-action-btn:disabled{opacity:.55;cursor:not-allowed;transform:none;}
+.memory-list{display:flex;flex-direction:column;gap:8px;max-height:270px;overflow:auto;
+  padding-right:4px;}
+.memory-item{background:#fff;border:1.4px solid var(--line);border-radius:12px;
+  padding:8px 10px;box-shadow:2px 2px 0 var(--line);}
+.memory-item-title{font-family:var(--font-display);font-weight:900;font-size:12px;
+  display:flex;justify-content:space-between;gap:8px;}
+.memory-item-date{color:var(--ink-3);font-size:10px;white-space:nowrap;}
+.memory-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;}
+.memory-tag{background:#FFF1B5;border:1px solid var(--line);border-radius:var(--r-pill);
+  padding:1px 7px;font-size:10px;}
+.memory-tag.bad{background:#fdf0ed;}
+.memory-context{white-space:pre-wrap;background:#fffcf3;border:1.4px dashed var(--line);
+  border-radius:10px;padding:8px;margin-top:8px;font-size:11px;color:var(--ink-2);
+  max-height:145px;overflow:auto;}
+.memory-empty{color:var(--ink-3);font-family:var(--font-hand);font-size:16px;
+  text-align:center;padding:18px 8px;}
+@media (max-width:880px){
+  .memory-modal-body{grid-template-columns:1fr;}
+}
 
 /* ============================================================
    Bento Cell 通用 —— 加双层描边 + 手绘抖动
@@ -662,6 +718,17 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
             </button>
           </div>
 
+          <div class="memory-strip">
+            <div class="memory-row">
+              <label class="memory-toggle">
+                <input type="checkbox" id="useMemory"/>
+                <span>🧠 生成时参考旅行记忆</span>
+              </label>
+              <button type="button" class="memory-open" id="openMemory">记忆本</button>
+            </div>
+            <div class="memory-status" id="memoryStatus">未使用旅行记忆</div>
+          </div>
+
           <div class="ff" style="margin-top:4px;"><label>🔑 API Key</label>
             <input type="password" id="apiKey" placeholder="可选 · 默认用服务器环境变量"/>
           </div>
@@ -759,6 +826,38 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
     <div id="pane-ocr"      class="pane"><pre id="archOcr"></pre></div>
     <div id="pane-fused"    class="pane"><pre id="archFused"></pre></div>
     <div id="pane-frames"   class="pane"><div id="archFrames" class="frames-grid"></div></div>
+  </div>
+</div>
+
+<!-- ====== 旅行记忆 modal ====== -->
+<div class="modal hidden" id="memoryModal">
+  <div class="modal-dialog memory-dialog">
+    <div class="modal-head">
+      <span class="cell-tag mint">🧠 旅行记忆本</span>
+      <button class="modal-close" id="closeMemory">×</button>
+    </div>
+    <div class="memory-modal-body">
+      <section class="memory-panel-card">
+        <div class="memory-section-title">旅行后复盘</div>
+        <div class="ff">
+          <label>写下真实体验</label>
+          <textarea id="memoryReview" rows="8"
+            placeholder="例：这次杭州两日游最喜欢湖边慢走和本地小吃，不喜欢排队网红店；第二天 6 个点太累，下次每天 3-4 个点更舒服。"></textarea>
+        </div>
+        <div class="memory-actions">
+          <button type="button" class="memory-action-btn" id="saveMemory">🧠 提炼并保存</button>
+          <button type="button" class="memory-action-btn secondary" id="previewMemory">🔎 检索当前偏好</button>
+        </div>
+        <div class="memory-context" id="memoryContext">检索结果会显示在这里。</div>
+      </section>
+      <section class="memory-panel-card">
+        <div class="memory-section-title">已保存记忆</div>
+        <div class="memory-list" id="memoryList">
+          <div class="memory-empty">还没有旅行记忆</div>
+        </div>
+        <div class="memory-context" id="memoryPlanTrace">生成路线后，这里会显示本次参考的记忆。</div>
+      </section>
+    </div>
   </div>
 </div>
 

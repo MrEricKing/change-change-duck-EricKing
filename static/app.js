@@ -38,6 +38,7 @@ function emojiFor(stop){
 const MAX_FILES = 5;
 let pickedFiles = [];  // [{file: File, path: ""}]
 let fileInput, fileEmpty, filePicked;
+const memoryState = { memories: [], lastContext: '', lastMatches: [] };
 
 function bindFile(){
   fileInput = $('#video');
@@ -298,6 +299,144 @@ function renderTips(plan){
   renderContributions(plan);
 }
 
+/* ---------- 旅行记忆 ---------- */
+function currentMemoryQuery(){
+  return {
+    destination: $('#metaCity')?.textContent || '',
+    days: parseInt($('#days')?.value, 10) || '',
+    people: parseInt($('#people')?.value, 10) || '',
+    budget: parseFloat($('#budget')?.value) || '',
+    travel_style: $('#travelStyle')?.value || '',
+    target_group: $('#targetGroup')?.value || '',
+    themes: $$('.theme-chip.on').map(c => c.dataset.theme),
+    extra: ($('#extra')?.value || '').trim(),
+  };
+}
+
+function renderMemoryList(){
+  const box = $('#memoryList');
+  if(!box) return;
+  const memories = memoryState.memories || [];
+  if(!memories.length){
+    box.innerHTML = '<div class="memory-empty">还没有旅行记忆</div>';
+    return;
+  }
+  box.innerHTML = memories.slice(0, 12).map(m => {
+    const liked = (m.liked || []).slice(0,3).map(x => `<span class="memory-tag">${esc(x)}</span>`).join('');
+    const disliked = (m.disliked || []).slice(0,3).map(x => `<span class="memory-tag bad">${esc(x)}</span>`).join('');
+    const date = (m.created_at || '').slice(0,10);
+    return `<div class="memory-item">
+      <div class="memory-item-title">
+        <span>${esc(m.trip_title || '旅行复盘')}</span>
+        <span class="memory-item-date">${esc(date)}</span>
+      </div>
+      <div class="memory-tags">${liked}${disliked}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderMemoryStatus(plan){
+  const status = $('#memoryStatus');
+  if(!status) return;
+  const summary = (plan && plan.summary) || {};
+  const matches = summary.memory_matches || [];
+  if(summary.memory_context){
+    status.textContent = `已参考 ${matches.length || 1} 条旅行记忆`;
+    status.classList.add('active');
+    return;
+  }
+  const enabled = !!$('#useMemory')?.checked;
+  if(enabled){
+    const count = memoryState.memories?.length || 0;
+    status.textContent = count ? `将从 ${count} 条旅行记忆中检索` : '已开启，但还没有保存的旅行记忆';
+    status.classList.toggle('active', !!count);
+  }else{
+    status.textContent = '未使用旅行记忆';
+    status.classList.remove('active');
+  }
+}
+
+function renderMemoryTrace(plan){
+  renderMemoryStatus(plan);
+  const trace = $('#memoryPlanTrace');
+  if(!trace) return;
+  const summary = (plan && plan.summary) || {};
+  if(summary.memory_context){
+    trace.textContent = summary.memory_context;
+  }else{
+    trace.textContent = '生成路线后，这里会显示本次参考的记忆。';
+  }
+}
+
+async function loadMemory(){
+  try{
+    const r = await fetch('/api/memory');
+    const d = await r.json();
+    if(!d.ok) throw new Error(d.error || '加载失败');
+    memoryState.memories = d.memories || [];
+    renderMemoryList();
+    renderMemoryStatus();
+  }catch(err){
+    const box = $('#memoryList');
+    if(box) box.innerHTML = `<div class="memory-empty">记忆加载失败：${esc(err.message)}</div>`;
+  }
+}
+
+function renderMemoryRetrieve(context, matches){
+  memoryState.lastContext = context || '';
+  memoryState.lastMatches = matches || [];
+  const box = $('#memoryContext');
+  if(!box) return;
+  if(!context){
+    box.textContent = '没有命中的旅行记忆。';
+    return;
+  }
+  const titles = (matches || []).map(m => `《${m.trip_title || '旅行复盘'}》${m.score ? ` ${m.score}` : ''}`).join('、');
+  box.textContent = `${titles ? `命中：${titles}\n\n` : ''}${context}`;
+}
+
+async function previewMemory(){
+  try{
+    const r = await fetch('/api/memory/retrieve', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(currentMemoryQuery())
+    });
+    const d = await r.json();
+    if(!d.ok) throw new Error(d.error || '检索失败');
+    renderMemoryRetrieve(d.context, d.matches || []);
+    toast(d.context ? '🔎 已检索旅行记忆' : '没有命中的旅行记忆', d.context ? 'ok' : '');
+  }catch(err){
+    toast('检索失败：'+err.message, 'err');
+  }
+}
+
+async function saveMemoryReflection(){
+  const review = ($('#memoryReview')?.value || '').trim();
+  if(!review){ toast('请先写旅行复盘', 'err'); return; }
+  const apiKey = $('#apiKey')?.value.trim() || '';
+  if(!apiKey){ toast('需要 API Key 才能提炼记忆', 'err'); return; }
+  const btn = $('#saveMemory');
+  btn.disabled = true; btn.textContent = '🧠 提炼中…';
+  try{
+    const r = await fetch('/api/memory/reflect', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({review_text: review, api_key: apiKey})
+    });
+    const d = await r.json();
+    if(!d.ok) throw new Error(d.error || '保存失败');
+    memoryState.memories = d.memories || [];
+    $('#memoryReview').value = '';
+    renderMemoryList();
+    renderMemoryStatus();
+    toast('✓ 已保存旅行记忆', 'ok');
+    await previewMemory();
+  }catch(err){
+    toast('保存失败：'+err.message, 'err');
+  }finally{
+    btn.disabled = false; btn.textContent = '🧠 提炼并保存';
+  }
+}
+
 /* ---------- 渲染：原始素材 ---------- */
 function renderArchive(data){
   $('#archMarkdown').textContent   = data.markdown_text || '';
@@ -372,6 +511,7 @@ function renderAll(data){
   renderDays(data.plan);
   renderDuo(data.plan);
   renderTips(data.plan);
+  renderMemoryTrace(data.plan);
   renderArchive(data);
   // 滚动观察必须放在 renderDays 之后（要拿到新的 day-island）
   requestAnimationFrame(setupDayObserver);
@@ -457,7 +597,11 @@ async function applyPreference(){
   try{
     const r = await fetch('/api/revise', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({instruction: text, api_key: apiKey})
+      body: JSON.stringify({
+        instruction: text,
+        api_key: apiKey,
+        use_memory: !!$('#useMemory')?.checked,
+      })
     });
     const d = await r.json();
     if(!d.ok) throw new Error(d.error || '调整失败');
@@ -515,6 +659,7 @@ async function onSubmit(e){
     target_group: $('#targetGroup')?.value || '大人',
     themes: $$('.theme-chip.on').map(c => c.dataset.theme),
     extra: ($('#extra')?.value || '').trim(),
+    use_memory: !!$('#useMemory')?.checked,
     geocode: true,
   };
 
@@ -670,7 +815,31 @@ function bindArchive(){
     }
   });
   window.addEventListener('keydown', e => {
-    if(e.key === 'Escape') modal?.classList.add('hidden');
+    if(e.key === 'Escape'){
+      modal?.classList.add('hidden');
+      $('#memoryModal')?.classList.add('hidden');
+    }
+  });
+}
+
+function bindMemory(){
+  const modal = $('#memoryModal');
+  $('#openMemory')?.addEventListener('click', async () => {
+    modal?.classList.remove('hidden');
+    await loadMemory();
+  });
+  $('#closeMemory')?.addEventListener('click', () => modal?.classList.add('hidden'));
+  modal?.addEventListener('click', e => {
+    if(e.target === modal) modal.classList.add('hidden');
+  });
+  $('#saveMemory')?.addEventListener('click', saveMemoryReflection);
+  $('#previewMemory')?.addEventListener('click', previewMemory);
+  $('#useMemory')?.addEventListener('change', async () => {
+    renderMemoryStatus();
+    if($('#useMemory').checked && !memoryState.memories.length){
+      await loadMemory();
+      renderMemoryStatus();
+    }
   });
 }
 
@@ -687,11 +856,13 @@ function boot(){
     bindFile();
     bindThemeChips();
     bindArchive();
+    bindMemory();
     bindSessionBtns();
     bindJobControl();
     $('#uploadForm')?.addEventListener('submit', onSubmit);
     $('#applyPref')?.addEventListener('click', applyPreference);
     tryLoadExisting();
+    loadMemory();
     checkResidualJob();
 
     // 防止 input 自动 scrollIntoView 把 body 顶上去
