@@ -219,6 +219,8 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
 .memory-tag{background:#FFF1B5;border:1px solid var(--line);border-radius:var(--r-pill);
   padding:1px 7px;font-size:10px;}
 .memory-tag.bad{background:#fdf0ed;}
+.memory-brief{margin-top:5px;color:var(--ink-2);font-size:10.5px;line-height:1.35;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 .memory-context{white-space:pre-wrap;background:#fffcf3;border:1.4px dashed var(--line);
   border-radius:10px;padding:8px;margin-top:8px;font-size:11px;color:var(--ink-2);
   max-height:145px;overflow:auto;}
@@ -449,6 +451,7 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
 .post-output{white-space:pre-wrap;background:#fffcf3;border:1.4px dashed var(--line);
   border-radius:10px;padding:8px;margin-top:8px;font-size:11px;color:var(--ink-2);
   max-height:230px;overflow:auto;}
+.post-record-preview{max-height:180px;}
 
 /* 日色图例（cell-body 上方一行小药丸） */
 .day-legend{display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 8px;
@@ -764,11 +767,11 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
           </div>
 
           <div class="ff">
-            <label>📝 补充偏好（想去/想避开都行）</label>
+            <label>📝 补充偏好（可选，想额外说明再写）</label>
             <textarea id="extra" rows="2"
               placeholder="例：不爬山 · 想多吃小吃 · 拒绝早起 · 避开网红打卡点"></textarea>
             <button type="button" class="apply-pref-btn" id="applyPref">
-              ✍️ 仅按这条偏好调整（不重传视频）
+              ✍️ 按已选偏好调整路线（不重传视频）
             </button>
           </div>
 
@@ -784,8 +787,22 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
           </div>
 
           <div class="ff" style="margin-top:4px;"><label>🔑 API Key</label>
-            <input type="password" id="apiKey" placeholder="可选 · 默认用服务器环境变量"/>
+            <input type="password" id="apiKey" placeholder="可留空 · 使用服务器环境变量"/>
           </div>
+          <div class="ff-grid">
+            <div class="ff">
+              <label>🌐 Base URL</label>
+              <input type="text" id="apiBaseUrl" placeholder="默认读取服务器环境"/>
+            </div>
+            <div class="ff">
+              <label>🤖 Model</label>
+              <input type="text" id="apiModel" placeholder="默认读取服务器环境"/>
+            </div>
+          </div>
+          <div class="post-actions" style="margin-top:2px;">
+            <button type="button" class="post-btn secondary" id="useDeepSeekPreset">使用 DeepSeek V4 Pro</button>
+          </div>
+          <div class="memory-status" id="apiEnvHint">正在读取 API 环境…</div>
 
           <button type="submit" class="big-btn" id="submitBtn">
             <span>✏️</span><span>开始绘制地图</span>
@@ -904,6 +921,7 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
           <div class="post-record-list" id="postRecordList">
             <div class="memory-empty">还没有旅行后记录</div>
           </div>
+          <div class="post-output post-record-preview" id="postRecordPreview">保存后的完整旅行记录会显示在这里。</div>
         </section>
 
         <section class="post-section" id="postMemoryLibrary">

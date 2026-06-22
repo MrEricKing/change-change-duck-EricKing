@@ -1000,6 +1000,7 @@ def api_env():
         "yt_dlp": bool(_sh.which("yt-dlp")),
         "ffmpeg": bool(_sh.which("ffmpeg")),
         "ffprobe": bool(_sh.which("ffprobe")),
+        "has_api_key": bool(os.getenv("VECTRUST_API_KEY") or os.getenv("OPENAI_API_KEY")),
         "default_base_url": os.getenv("OPENAI_BASE_URL", "https://api.openai-next.com"),
         "default_model": os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
     })

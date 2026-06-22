@@ -9,6 +9,7 @@ Folium 地图渲染：
 """
 import math
 import logging
+import os
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -72,6 +73,8 @@ def fetch_road_polyline(coords_wgs84: List[Tuple[float, float]],
     """OSRM public demo: 用真实路网串起来。失败 → None（调用方画直线）"""
     if len(coords_wgs84) < 2:
         return None
+    if os.getenv("ENABLE_OSRM", "").strip().lower() not in {"1", "true", "yes", "on"}:
+        return None
     key = (profile, tuple((round(la, 5), round(ln, 5)) for la, ln in coords_wgs84))
     if key in _ROUTE_CACHE:
         return _ROUTE_CACHE[key]
@@ -80,7 +83,8 @@ def fetch_road_polyline(coords_wgs84: List[Tuple[float, float]],
     try:
         r = requests.get(
             url, params={"overview": "full", "geometries": "geojson"},
-            timeout=8, proxies={"http": None, "https": None},
+            timeout=float(os.getenv("OSRM_TIMEOUT", "2")),
+            proxies={"http": None, "https": None},
         )
         if r.status_code != 200:
             _ROUTE_CACHE[key] = None

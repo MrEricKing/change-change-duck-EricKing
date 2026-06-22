@@ -40,7 +40,63 @@ let pickedFiles = [];  // [{file: File, path: ""}]
 let fileInput, fileEmpty, filePicked;
 let currentPlan = null;
 const memoryState = { memories: [], selectedIds: new Set(), lastContext: '', lastMatches: [] };
-const postTripState = { records: [], photos: [], activeRecord: null };
+const postTripState = { records: [], fullRecords: [], photos: [], activeRecord: null };
+const apiState = { hasServerKey: false, defaultBaseUrl: '', defaultModel: '' };
+
+function apiConfigPayload(){
+  return {
+    api_key: ($('#apiKey')?.value || '').trim(),
+    base_url: ($('#apiBaseUrl')?.value || '').trim(),
+    model: ($('#apiModel')?.value || '').trim(),
+  };
+}
+
+function hasApiKeyAvailable(){
+  return !!apiConfigPayload().api_key || !!apiState.hasServerKey;
+}
+
+function explainApiError(message){
+  const text = String(message || '');
+  if(/无效的令牌|invalid token|invalid api key|unauthorized|401/i.test(text)){
+    return `${text}\n\n排查：API Key 与 Base URL 不匹配。若使用 DeepSeek Key，请把 Base URL 改为 https://api.deepseek.com，Model 改为 deepseek-v4-pro；若使用 OpenAI 官方 Key，请把 Base URL 改为 https://api.openai.com；若使用第三方中转，请使用该平台发放的 Key，并填写对应 Base URL。`;
+  }
+  return text;
+}
+
+async function loadApiEnv(){
+  try{
+    const r = await fetch('/api/env');
+    const d = await r.json();
+    apiState.hasServerKey = !!d.has_api_key;
+    apiState.defaultBaseUrl = d.default_base_url || '';
+    apiState.defaultModel = d.default_model || '';
+    const baseInput = $('#apiBaseUrl');
+    const modelInput = $('#apiModel');
+    if(baseInput) baseInput.placeholder = apiState.defaultBaseUrl || '默认读取服务器环境';
+    if(modelInput) modelInput.placeholder = apiState.defaultModel || '默认读取服务器环境';
+    const hint = $('#apiEnvHint');
+    if(hint){
+      const keyText = apiState.hasServerKey ? '服务器已有 Key' : '服务器未配置 Key，需要在上方填写';
+      const baseText = apiState.defaultBaseUrl || '未配置 Base URL';
+      const modelText = apiState.defaultModel || '未配置 Model';
+      hint.textContent = `${keyText} · 默认 ${baseText} · ${modelText}`;
+      hint.classList.toggle('active', apiState.hasServerKey);
+    }
+  }catch(err){
+    const hint = $('#apiEnvHint');
+    if(hint) hint.textContent = 'API 环境读取失败，可手动填写 Key / Base URL / Model';
+  }
+}
+
+function bindApiConfig(){
+  $('#useDeepSeekPreset')?.addEventListener('click', () => {
+    const baseInput = $('#apiBaseUrl');
+    const modelInput = $('#apiModel');
+    if(baseInput) baseInput.value = 'https://api.deepseek.com';
+    if(modelInput) modelInput.value = 'deepseek-v4-pro';
+    toast('已切换为 DeepSeek V4 Pro', 'ok');
+  });
+}
 
 function bindFile(){
   fileInput = $('#video');
@@ -347,6 +403,7 @@ function renderMemoryList(){
     const liked = (m.liked || []).slice(0,3).map(x => `<span class="memory-tag">${esc(x)}</span>`).join('');
     const disliked = (m.disliked || []).slice(0,3).map(x => `<span class="memory-tag bad">${esc(x)}</span>`).join('');
     const date = (m.created_at || '').slice(0,10);
+    const brief = [m.pace_preference, m.traffic_preference].filter(Boolean).join(' ');
     return `<div class="memory-item">
       <div class="memory-item-title">
         <label class="memory-select-row">
@@ -356,6 +413,7 @@ function renderMemoryList(){
         <span class="memory-item-date">${esc(date)}</span>
       </div>
       <div class="memory-tags">${liked}${disliked}</div>
+      ${brief ? `<div class="memory-brief">${esc(brief)}</div>` : ''}
     </div>`;
   }).join('');
   box.querySelectorAll('.memory-select').forEach(input => {
@@ -463,14 +521,14 @@ async function saveMemoryReflection(){
     record.photos.length ? `照片素材：${record.photos.map(p => p.name).join('、')}` : '',
   ].filter(Boolean).join('\n');
   if(!review){ toast('请先写旅行复盘', 'err'); return; }
-  const apiKey = $('#apiKey')?.value.trim() || '';
-  if(!apiKey){ toast('需要 API Key 才能提炼记忆', 'err'); return; }
+  const apiConfig = apiConfigPayload();
+  if(!hasApiKeyAvailable()){ toast('需要 API Key 才能提炼记忆', 'err'); return; }
   const btn = $('#saveMemory');
   btn.disabled = true; btn.textContent = '🧠 提炼中…';
   try{
     const r = await fetch('/api/memory/reflect', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({review_text: review, api_key: apiKey})
+      body: JSON.stringify({ review_text: review, ...apiConfig })
     });
     const d = await r.json();
     if(!d.ok) throw new Error(d.error || '保存失败');
@@ -481,7 +539,7 @@ async function saveMemoryReflection(){
     toast('✓ 已保存历史偏好', 'ok');
     await previewMemory();
   }catch(err){
-    toast('保存失败：'+err.message, 'err');
+    toast('保存失败：'+explainApiError(err.message), 'err');
   }finally{
     btn.disabled = false; btn.textContent = '🧠 提炼并保存';
   }
@@ -521,12 +579,44 @@ function collectPostTripRecord(){
   };
 }
 
+function joinPostTripList(items){
+  return (items || []).filter(Boolean).join('、') || '未记录';
+}
+
+function formatPostTripRecordPreview(record){
+  if(!record) return '保存后的完整旅行记录会显示在这里。';
+  const lines = [
+    `标题：${record.title || '旅行后记录'}`,
+    `实际去了：${joinPostTripList(record.actual_places)}`,
+    `没去成：${joinPostTripList(record.skipped_places)}`,
+    `新增发现：${joinPostTripList(record.added_places)}`,
+    `实际花费：${record.actual_cost || '未记录'}`,
+    `实际节奏：${record.actual_pace || '未记录'}`,
+  ];
+  if(record.review_text) lines.push(`真实体验：${record.review_text}`);
+  const photos = (record.photos || []).map(p => p.name).filter(Boolean);
+  if(photos.length) lines.push(`照片素材：${photos.join('、')}`);
+  return lines.join('\n');
+}
+
+function findFullPostTripRecord(id){
+  return (postTripState.fullRecords || []).find(r => r.id === id) || null;
+}
+
+function renderPostTripRecordPreview(record){
+  const box = $('#postRecordPreview');
+  if(!box) return;
+  const target = record || postTripState.activeRecord || postTripState.fullRecords?.[0] || null;
+  box.textContent = formatPostTripRecordPreview(target);
+}
+
 function renderPostTripRecords(records){
   const box = $('#postRecordList');
   if(!box) return;
   const items = records || postTripState.records || [];
   if(!items.length){
     box.innerHTML = '<div class="memory-empty">还没有旅行后记录</div>';
+    renderPostTripRecordPreview(null);
     return;
   }
   box.innerHTML = items.slice(0, 8).map(r => {
@@ -541,6 +631,16 @@ function renderPostTripRecords(records){
       <div class="file-sub">${esc(places)}${photo ? ` · ${photo} 张照片` : ''}</div>
     </div>`;
   }).join('');
+  box.querySelectorAll('.post-record-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const record = findFullPostTripRecord(item.dataset.recordId);
+      if(record){
+        postTripState.activeRecord = record;
+        renderPostTripRecordPreview(record);
+      }
+    });
+  });
+  renderPostTripRecordPreview();
 }
 
 async function loadPostTripRecords(){
@@ -548,11 +648,14 @@ async function loadPostTripRecords(){
     const r = await fetch('/api/post-trip/records');
     const d = await r.json();
     if(!d.ok) throw new Error(d.error || '加载失败');
+    postTripState.fullRecords = d.records || [];
     postTripState.records = d.compact || d.records || [];
+    postTripState.activeRecord = postTripState.fullRecords[0] || postTripState.activeRecord;
     renderPostTripRecords(postTripState.records);
   }catch(err){
     const box = $('#postRecordList');
     if(box) box.innerHTML = `<div class="memory-empty">旅行记录加载失败：${esc(err.message)}</div>`;
+    renderPostTripRecordPreview(null);
   }
 }
 
@@ -605,8 +708,10 @@ async function savePostTripRecord(){
     const d = await r.json();
     if(!d.ok) throw new Error(d.error || '保存失败');
     postTripState.activeRecord = d.record;
+    postTripState.fullRecords = d.records || [];
     postTripState.records = d.compact || d.records || [];
     renderPostTripRecords(postTripState.records);
+    renderPostTripRecordPreview(d.record);
     toast('✓ 已保存旅行后记录', 'ok');
   }catch(err){
     toast('保存失败：'+err.message, 'err');
@@ -615,9 +720,29 @@ async function savePostTripRecord(){
   }
 }
 
+async function loadPostTripEvaluationFallback(showToast=false){
+  const out = $('#postTripOutput');
+  try{
+    const r = await fetch('/output/post_trip_video_evaluation.md', { cache: 'no-store' });
+    if(!r.ok) throw new Error('没有本地视频评价示例');
+    const text = (await r.text()).trim();
+    if(!text) throw new Error('本地视频评价示例为空');
+    if(out) out.textContent = text;
+    if(showToast) toast('已显示本地视频评价示例', 'ok');
+    return true;
+  }catch(err){
+    if(showToast) toast(err.message, 'err');
+    return false;
+  }
+}
+
 async function runPostTripOutcome(kind){
-  const apiKey = $('#apiKey')?.value.trim() || '';
-  if(!apiKey){ toast('需要 API Key 才能生成复盘成果', 'err'); return; }
+  const apiConfig = apiConfigPayload();
+  if(!hasApiKeyAvailable()){
+    if(kind === 'evaluation' && await loadPostTripEvaluationFallback(true)) return;
+    toast('需要 API Key 才能生成复盘成果', 'err');
+    return;
+  }
   const record = collectPostTripRecord();
   if(!record.review_text && !record.actual_places.length && !record.photos.length){
     toast('请先记录实际行程、照片或真实体验', 'err');
@@ -632,15 +757,16 @@ async function runPostTripOutcome(kind){
   try{
     const r = await fetch(endpoint, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ api_key: apiKey, record })
+      body: JSON.stringify({ ...apiConfig, record })
     });
     const d = await r.json();
     if(!d.ok) throw new Error(d.error || '生成失败');
     if(out) out.textContent = d.guide || d.evaluation || '';
     toast(kind === 'guide' ? '✓ 已生成旅行后攻略' : '✓ 已完成视频评价', 'ok');
   }catch(err){
-    if(out) out.textContent = '生成失败：' + err.message;
-    toast('生成失败：'+err.message, 'err');
+    const message = explainApiError(err.message);
+    if(out) out.textContent = '生成失败：' + message;
+    toast('生成失败：'+message, 'err');
   }finally{
     if(btn){ btn.disabled = false; btn.textContent = oldText; }
   }
@@ -813,16 +939,22 @@ async function bindSessionBtns(){
 
 /* ---------- 偏好按钮：直接走 revise，不重传视频 ---------- */
 async function applyPreference(){
-  const text = $('#extra').value.trim();
-  if(!text){ toast('请先在补充偏好中写点什么', 'err'); return; }
-  const apiKey = $('#apiKey').value.trim();
-  if(!apiKey){ toast('需要 API Key 才能调路线', 'err'); return; }
-  if($('#useMemory')?.checked && !selectedMemoryIds().length){
+  const typedText = $('#extra').value.trim();
+  const useMemory = !!$('#useMemory')?.checked;
+  const selectedIds = selectedMemoryIds();
+  if(!typedText && !(useMemory && selectedIds.length)){
+    toast('请填写补充偏好，或先选择历史偏好', 'err');
+    return;
+  }
+  const apiConfig = apiConfigPayload();
+  if(!hasApiKeyAvailable()){ toast('需要 API Key 才能调路线', 'err'); return; }
+  if(useMemory && !selectedIds.length){
     toast('请先从历史偏好中选择至少 1 条', 'err');
     $('#postMemoryLibrary')?.scrollIntoView({behavior:'smooth', block:'center'});
     return;
   }
 
+  const text = typedText || '请根据已选历史偏好调整当前路线。不要照搬历史旅行中的地点，只迁移其中体现出的旅行习惯、节奏偏好、交通偏好、避雷经验和内容评价结论。';
   const btn = $('#applyPref');
   btn.disabled = true; btn.textContent = '✏️ 调整中…';
   try{
@@ -830,9 +962,9 @@ async function applyPreference(){
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         instruction: text,
-        api_key: apiKey,
-        use_memory: !!$('#useMemory')?.checked,
-        selected_memory_ids: selectedMemoryIds(),
+        ...apiConfig,
+        use_memory: useMemory,
+        selected_memory_ids: selectedIds,
       })
     });
     const d = await r.json();
@@ -842,9 +974,9 @@ async function applyPreference(){
     showMap('/api/map?t='+Date.now());
     toast('✓ 已按偏好更新路线', 'ok');
   }catch(err){
-    toast('失败：'+err.message, 'err');
+    toast('失败：'+explainApiError(err.message), 'err');
   }finally{
-    btn.disabled = false; btn.textContent = '✍️ 仅按这条偏好调整（不重传视频）';
+    btn.disabled = false; btn.textContent = '✍️ 按已选偏好调整路线（不重传视频）';
   }
 }
 
@@ -853,7 +985,8 @@ async function onSubmit(e){
   e.preventDefault();
   const files = (window.getPickedFiles?.() || []).map(p => p.file);
   if(!files.length){ toast('请先选择至少 1 个视频文件', 'err'); return; }
-  const apiKey = $('#apiKey').value.trim();
+  const apiConfig = apiConfigPayload();
+  if(!hasApiKeyAvailable()){ toast('需要 API Key 才能生成路线', 'err'); return; }
   if($('#useMemory')?.checked && !selectedMemoryIds().length){
     toast('请先从历史偏好中选择至少 1 条', 'err');
     $('#postMemoryLibrary')?.scrollIntoView({behavior:'smooth', block:'center'});
@@ -884,7 +1017,7 @@ async function onSubmit(e){
   }
 
   const params = {
-    api_key: apiKey,
+    ...apiConfig,
     local_videos: localPaths,
     days: parseInt($('#days').value,10) || 2,
     people: parseInt($('#people').value,10) || 2,
@@ -933,7 +1066,7 @@ async function onSubmit(e){
     }
     pollJob();
   }catch(err){
-    toast('提交失败：'+err.message, 'err');
+    toast('提交失败：'+explainApiError(err.message), 'err');
     $('#submitBtn').disabled = false;
     $('#progress').classList.add('hidden');
   }
@@ -1090,6 +1223,7 @@ function boot(){
     bindFile();
     bindThemeChips();
     bindArchive();
+    bindApiConfig();
     bindMemory();
     bindPostTrip();
     bindSessionBtns();
@@ -1097,8 +1231,10 @@ function boot(){
     $('#uploadForm')?.addEventListener('submit', onSubmit);
     $('#applyPref')?.addEventListener('click', applyPreference);
     tryLoadExisting();
+    loadApiEnv();
     loadMemory();
     loadPostTripRecords();
+    loadPostTripEvaluationFallback();
     checkResidualJob();
 
     // 防止 input 自动 scrollIntoView 把 body 顶上去
